@@ -48,6 +48,8 @@ public:
 
     virtual void *delete_write(int fd) = 0;
 
+    virtual bool empty() = 0;
+
     virtual std::vector<poll_result> *wait_poll(int timeout) = 0;
 };
 
@@ -93,6 +95,10 @@ public:
     void *delete_read(int fd) override;
 
     void *delete_write(int fd) override;
+
+    bool empty() override {
+        return fds.empty();
+    }
 
     std::vector<poll_result> *wait_poll(int timeout) override;
 

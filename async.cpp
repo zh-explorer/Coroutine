@@ -117,11 +117,18 @@ int EventLoop::wakeup_coro() {
 
         if (this->active_list.empty()) {
             auto iter3 = this->time_event_list.begin();
+            int timeout;
             if (iter3 == this->time_event_list.end()) {
-                return -1; // there is no coro
+                if (poll.empty()) {
+                    return -1; // there is no coro
+                }
+                timeout = -1;
+
+            } else {
+                timeout = (*iter2).first - timestamp;
             }
 //            ::sleep((*iter3).first - timestamp);
-            auto result_list = poll.wait_poll((*iter3).first - timestamp);
+            auto result_list = poll.wait_poll(timeout);
             auto result_iter = result_list->begin();
             while (result_iter != result_list->end()) {
                 IO *io = static_cast<IO *>((*result_iter).data);
