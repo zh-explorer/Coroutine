@@ -30,17 +30,13 @@ int main() {
     e->add_to_poll(a);
     e->add_to_poll(b);
     e->loop();
-    errno;
 }
 
 Lock *a;
 
 void a1(char *message) {
     puts("In func a1");
-    a = new Lock();
-    a->acquire();
-    puts("first lock");
-    a->acquire();
+    asleep(3);
     printf("The message %s\n", message);
 }
 
@@ -49,5 +45,4 @@ void b1(char *message) {
     puts("In func b1");
     asleep(5);
     printf("The message %s\n", message);
-    a->release();
 }

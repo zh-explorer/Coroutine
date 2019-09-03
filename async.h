@@ -9,12 +9,18 @@
 #include <map>
 #include <ctime>
 #include "poll.h"
+#include <queue>
+#include "aThread.h"
+
+#define THREAD_POLL_SIZE 10
 
 class Coroutine;
 
 class Future;
 
 class Event;
+
+class Executor;
 
 void wait_event();
 
@@ -24,8 +30,12 @@ void asleep_to(time_t timestamp);
 
 void asleep(int second);
 
+void wakeup_notify();
+
 class EventLoop {
 public:
+    EventLoop();
+
     void schedule();
 
     void add_to_poll(Coroutine *coro);
@@ -36,10 +46,21 @@ public:
 
     void add_event(Event *e, int timeout = -1);
 
+    void add_executor(Executor *executor);
+
+    void add_thread(aThread *thread);
+
+    // notify the main thread up and exit the epoll_wait
+    void wakeup_notify();
+
     EPoll poll;
 
     Coroutine *current_run{};
 private:
+    pthread_t thread_id;
+    bool event_change = false;
+    std::vector<aThread *> thread_pool;
+
     std::vector<Coroutine *> active_list;
 
     struct event_pair {
@@ -127,6 +148,26 @@ public:
     };
 };
 
+class Executor : public Event {
+public:
+    Executor(void *(*func)(void *), void *argv);
+
+    void run();
+
+    bool should_release() override;
+
+    // the thread that run this executor
+    aThread *thread = NULL;
+
+    void *(*call_func)(void *);
+
+    void *argv;
+
+    void *ret_val = 0;
+
+    bool fin = false;
+
+};
+
 extern EventLoop *current_event;
-// need a lock
 #endif //COROUTINE_ASYNC_H

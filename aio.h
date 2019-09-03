@@ -20,15 +20,25 @@ enum WRITE_MODE {
     write_any,
 };
 
+class dns_req {
+public:
+    char *url;
+    struct in_addr *ip;
+};
+
 class aio {
 public:
     aio(int domain, int type, int protocol);
 
     explicit aio(int fd);
 
+    virtual ~aio();
+
     int write(unsigned char *buf, size_t count, enum WRITE_MODE write_mode = write_all);
 
     int read(unsigned char *buf, size_t count, enum READ_MODE mode = read_fix);
+
+    int get_addr(char *url, struct in_addr *ip);
 
     // get the cache data size.
     unsigned int cache_size() {
@@ -38,6 +48,8 @@ public:
     int bind(const struct sockaddr *addr, socklen_t addrlen);
 
     int bind(int port);
+
+    int close();
 
     int fileno;
 private:

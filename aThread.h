@@ -6,23 +6,42 @@
 #define COROUTINE_ATHREAD_H
 
 #include <vector>
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 class Executor;
 
+// aThread is not a thead save class.
 class aThread {
 public:
-    aThread();
+    explicit aThread();
 
-    void execute(Executor *executor);
+    virtual  ~aThread();
+
+    bool run(Executor *executor);
 
     void running();
 
-    void is_busy();
+    bool is_busy();
+
+    bool stop();
 
 private:
-    Executor *curren_executor;
+    Executor *executor = NULL;
 
-    std::vector<Executor *> wait_list;
+    bool mark_stop = false;
+
+    bool is_running = false;
+
+    std::mutex m;
+
+    std::condition_variable cv;
+
+    std::thread thread;
+
+    pthread_t thread_id = 0;
 };
 
 

@@ -13,7 +13,9 @@
 #include <cstring>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
+int do_dns_req(dns_req *req);
 
 aio::aio(int domain, int type, int protocol) {
     fileno = socket(domain, type, protocol);
@@ -129,6 +131,24 @@ int aio::bind(int port) {
     return ::bind(fileno, reinterpret_cast<const sockaddr *>(&addr), sizeof(addr));
 }
 
+int aio::get_addr(char *url, struct in_addr *ip) {
+    dns_req req;
+    req.url = url;
+    req.ip = ip;
+    Executor executor(reinterpret_cast<void *(*)(void *)>(do_dns_req), &req);
+    executor.run();
+    return (long int) executor.ret_val;
+}
+
+int aio::close() {
+    return ::close(fileno);
+}
+
+aio::~aio() {
+    close();
+}
+
+
 int aio_client::connect(const struct sockaddr *addr, socklen_t addrlen) {
     ::connect(fileno, addr, addrlen);
     IO io(fileno);
@@ -178,4 +198,15 @@ aio *aio_server::accept() {
         }
         return new aio(fileno);
     }
+}
+
+int do_dns_req(dns_req *req) {
+    struct hostent *host;
+    host = gethostbyname(req->url);
+    if (host == NULL || host->h_addrtype == AF_INET6) {
+        logger(ERR, stderr, "dns request failed");
+        return -1;
+    }
+    memcpy(&req->ip->s_addr, host->h_addr, 4);
+    return 0;
 }

@@ -8,9 +8,22 @@
 #include <cstdio>
 #include <unistd.h>
 #include <cassert>
+#include <signal.h>
+#include <pthread.h>
 
 // TODO: do not support thread. We should store this in TLS
 EventLoop *current_event;
+
+EventLoop::EventLoop() {
+    thread_id = pthread_self();
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1);
+
+    // we block the SIGUSR1, when the executor thread fin, send a SIGUSR1 to this thread
+    // and epoll_pwait will unblock this sig and wakeup.
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+}
 
 // schedule give up cpu. buf the coro can run immediately
 void schedule() {
@@ -41,6 +54,7 @@ void EventLoop::add_to_poll(Coroutine *coro) {
 // TODO: add a argv to tell loop wait for witch coro
 void EventLoop::loop() {
     Coroutine *c;
+    current_event = this;
     while (true) {
         int re = this->wakeup_coro();
         if (re != 0) {      // this means all corn is exit.
@@ -54,11 +68,9 @@ void EventLoop::loop() {
         this->active_list.erase(iter);
         if (c->coro_status == INIT) {
             this->current_run = c;
-            current_event = this;
             c->func_run();
         } else if (c->coro_status == RUNNING) {
             this->current_run = c;
-            current_event = this;
             c->continue_run();
         } else if (c->coro_status == END) {
             c->func_stop();
@@ -71,6 +83,7 @@ void EventLoop::loop() {
 
 int EventLoop::wakeup_coro() {
     while (true) {
+        event_change = false;
         // iter all event list
         auto iter = this->event_list.begin();
         while (iter != this->event_list.end()) {
@@ -115,7 +128,7 @@ int EventLoop::wakeup_coro() {
             }
         }
 
-        if (this->active_list.empty()) {
+        if (this->active_list.empty() && !event_change) {
             auto iter3 = this->time_event_list.begin();
             int timeout;
             if (iter3 == this->time_event_list.end()) {
@@ -125,7 +138,7 @@ int EventLoop::wakeup_coro() {
                 timeout = -1;
 
             } else {
-                timeout = (*iter2).first - timestamp;
+                timeout = (*iter3).first - timestamp;
             }
 //            ::sleep((*iter3).first - timestamp);
             auto result_list = poll.wait_poll(timeout);
@@ -159,6 +172,7 @@ void add_event(Event *e, int timeout) {
 
 // we split add event and wait event. so a coro sometimes have change to wait multi events
 void EventLoop::add_event(Event *e, int timeout) {
+    event_change = true;
     event_vector a;
     if (timeout != -1) {
         time_t wait_timestamp = time(NULL) + timeout;
@@ -172,6 +186,44 @@ void EventLoop::add_event(Event *e, int timeout) {
         this->event_list.push_back(event_pair(e, current_run));
     }
 }
+
+void run_executor(Executor *executor) {
+    current_event->add_executor(executor);
+}
+
+void EventLoop::add_executor(Executor *executor) {
+    aThread *thread;
+    if (!thread_pool.empty()) {
+        thread = *thread_pool.erase(thread_pool.begin());
+    } else {
+        thread = new aThread;
+    }
+    assert(!thread->is_busy());
+    executor->thread = thread;
+    thread->run(executor);
+}
+
+void stop_thread(aThread *thread) {
+    current_event->add_thread(thread);
+}
+
+void EventLoop::add_thread(aThread *thread) {
+    if (thread_pool.size() >= THREAD_POLL_SIZE) {
+        thread->stop();
+        delete thread;
+    } else {
+        thread_pool.push_back(thread);
+    }
+}
+
+void wakeup_notify() {
+    current_event->wakeup_notify();
+}
+
+void EventLoop::wakeup_notify() {
+    pthread_kill(thread_id, SIGUSR1);
+}
+
 
 void Future::set() {
     flag = true;
@@ -262,3 +314,23 @@ void IO::get_result(poll_result re) {
     have_result = true;
 }
 
+Executor::Executor(void *(*func)(void *), void *argv) {
+    this->call_func = func;
+    this->argv = argv;
+}
+
+void Executor::run() {
+    run_executor(this);
+    add_event(this, -1);
+    wait_event();
+}
+
+bool Executor::should_release() {
+    if (!thread->is_busy()) {
+        stop_thread(thread);
+        thread = NULL;
+        return true;
+    } else {
+        return false;
+    }
+}

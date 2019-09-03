@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
+#include <pthread.h>
+#include <signal.h>
 
 poll_ev::poll_ev(int fd) {
     events = EPOLLET | EPOLLRDHUP;
@@ -134,8 +136,14 @@ std::vector<poll_result> *EPoll::wait_poll(int timeout) {
     struct epoll_event evs[20];
     int result;
     auto fd_result = new std::vector<poll_result>;
-    result = epoll_wait(epoll_fd, evs, 20, timeout * 1000);
+    sigset_t sigmask;
+    pthread_sigmask(SIG_BLOCK, NULL, &sigmask);
+    sigdelset(&sigmask, SIGUSR1);
+    result = epoll_pwait(epoll_fd, evs, 20, timeout * 1000, &sigmask);
     if (result == -1) {
+        if (errno == EINTR) {
+            return fd_result;
+        }
         // no result to make epoll wait error
         logger(ERR, stderr, "epoll_wait return error %s", strerror(errno));
         abort();
