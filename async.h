@@ -22,6 +22,8 @@ class Event;
 
 class Executor;
 
+void add_to_poll(Coroutine *coro);
+
 void wait_event();
 
 void schedule();
@@ -57,6 +59,7 @@ public:
 
     Coroutine *current_run{};
 private:
+    int thread_count = 0;
     pthread_t thread_id;
     bool event_change = false;
     std::vector<aThread *> thread_pool;
@@ -89,7 +92,7 @@ public:
 
 class Future : public Event {
 public:
-    bool wait(int second = 0);
+    bool wait(int second = -1);
 
     void set();
 

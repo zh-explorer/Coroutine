@@ -80,8 +80,10 @@ struct regs {
 Coroutine::Coroutine(void *(*func)(void *), void *arg, size_t stack_size) {
     this->call_func = func;
     this->stack_size = stack_size;
-    this->stack_end = (unsigned char *) mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
-                                             0);
+//    this->stack_end = (unsigned char *) mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
+//                                             0);
+
+    this->stack_end = static_cast<unsigned char *>(malloc(stack_size));
     this->stack_start = this->stack_end + stack_size;
     this->arg = arg;
 }
@@ -119,12 +121,11 @@ void Coroutine::schedule_back() {
 }
 
 void Coroutine::func_stop() {
-    munmap(this->stack_end, this->stack_size);
+//    munmap(this->stack_end, this->stack_size);
+    free(this->stack_end);
+    this->stack_end = NULL;
     if (this->done_func) {
         this->done_func(this, done_callback_data);
-    } else {
-        // do not have call back ,delete class here
-        delete (this);
     }
 }
 

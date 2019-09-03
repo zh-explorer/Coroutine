@@ -67,22 +67,25 @@ int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
             errno = io.error_number;
             return -1;
         }
-        auto read_size = ::read(fileno, buffer, BLOCK_SIZE);
-        if (read_size == 0 || (read_size == -1 && errno == EAGAIN)) {
-            // read end
-            if (mode == read_any) {
-                if (arrayBuf.length() != 0) {
-                    auto re = arrayBuf.read(buf, count);
-                    return re;
+        while (true) {
+            auto read_size = ::read(fileno, buffer, BLOCK_SIZE);
+            if (read_size == 0 || (read_size == -1 && errno == EAGAIN)) {
+                // read end
+                if (mode == read_any) {
+                    if (arrayBuf.length() != 0) {
+                        auto re = arrayBuf.read(buf, count);
+                        return re;
+                    }
+                } else if (mode == read_fix) {
+                    if (arrayBuf.length() >= count) {
+                        arrayBuf.read(buf, count);
+                        return count;
+                    }
                 }
-            } else if (mode == read_fix) {
-                if (arrayBuf.length() >= count) {
-                    arrayBuf.read(buf, count);
-                    return count;
-                }
+                break;
             }
+            arrayBuf.write(buffer, read_size);
         }
-        arrayBuf.write(buffer, read_size);
     }
 }
 
@@ -195,8 +198,9 @@ aio *aio_server::accept() {
             } else {
                 return NULL;
             }
+        } else {
+            return new aio(fd);
         }
-        return new aio(fileno);
     }
 }
 

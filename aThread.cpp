@@ -10,15 +10,14 @@
 #include <pthread.h>
 
 aThread::aThread() {
-    auto re = pthread_create(&thread_id, NULL, reinterpret_cast<void *(*)(void *)>(thread_caller), NULL);
-    if (!re) {
+    auto re = pthread_create(&thread_id, NULL, reinterpret_cast<void *(*)(void *)>(thread_caller), this);
+    if (re) {
         logger(ERR, stderr, "thread create failed");
         exit(-1);
     }
 }
 
 void aThread::running() {
-    thread_id = pthread_self();
     while (true) {
         {
             std::unique_lock<std::mutex> lk(m);

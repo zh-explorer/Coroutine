@@ -100,6 +100,7 @@ void *EPoll::delete_read(int fd) {
         return NULL;
     }
     auto re = (*iter).second.delete_read();
+    fds.erase(iter);
     if ((*iter).second.in_poll()) {
         result = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, (*iter).second.ret_ev());
     } else {
@@ -120,6 +121,7 @@ void *EPoll::delete_write(int fd) {
         return NULL;
     }
     auto re = (*iter).second.delete_write();
+    fds.erase(iter);
     if ((*iter).second.in_poll()) {
         result = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, (*iter).second.ret_ev());
     } else {

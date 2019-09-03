@@ -60,12 +60,17 @@ private:
 
 
 class aio_client : public aio {
+public:
+    aio_client(int domain, int type, int protocol) : aio(domain, type, protocol) {};
+
     int connect(const struct sockaddr *addr, socklen_t addrlen);
 
     int connect(char *addr, int port);
 };
 
 class aio_server : public aio {
+public:
+    aio_server(int domain, int type, int protocol) : aio(domain, type, protocol) {};
 
     int listen(int backlog);
 

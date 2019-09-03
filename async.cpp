@@ -14,6 +14,8 @@
 // TODO: do not support thread. We should store this in TLS
 EventLoop *current_event;
 
+void empty_handler(int signo) {}
+
 EventLoop::EventLoop() {
     thread_id = pthread_self();
     sigset_t set;
@@ -23,6 +25,11 @@ EventLoop::EventLoop() {
     // we block the SIGUSR1, when the executor thread fin, send a SIGUSR1 to this thread
     // and epoll_pwait will unblock this sig and wakeup.
     pthread_sigmask(SIG_BLOCK, &set, NULL);
+    struct sigaction action;
+    action.sa_handler = empty_handler;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    sigaction(SIGUSR1, &action, NULL);
 }
 
 // schedule give up cpu. buf the coro can run immediately
@@ -43,6 +50,10 @@ void wait_event() {
 
 void EventLoop::wait() {
     current_run->schedule_back();
+}
+
+void add_to_poll(Coroutine *coro) {
+    current_event->add_to_poll(coro);
 }
 
 void EventLoop::add_to_poll(Coroutine *coro) {
@@ -132,7 +143,7 @@ int EventLoop::wakeup_coro() {
             auto iter3 = this->time_event_list.begin();
             int timeout;
             if (iter3 == this->time_event_list.end()) {
-                if (poll.empty()) {
+                if (poll.empty() && thread_count == 0) {
                     return -1; // there is no coro
                 }
                 timeout = -1;
@@ -201,6 +212,7 @@ void EventLoop::add_executor(Executor *executor) {
     assert(!thread->is_busy());
     executor->thread = thread;
     thread->run(executor);
+    thread_count++;
 }
 
 void stop_thread(aThread *thread) {
@@ -214,6 +226,7 @@ void EventLoop::add_thread(aThread *thread) {
     } else {
         thread_pool.push_back(thread);
     }
+    thread_count--;
 }
 
 void wakeup_notify() {
