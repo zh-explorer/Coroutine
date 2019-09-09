@@ -5,6 +5,7 @@
 #include <cstdint>
 #include "async.h"
 #include "Coroutine.h"
+#include "log.h"
 #include <cstdio>
 #include <unistd.h>
 #include <cassert>
@@ -205,7 +206,8 @@ void run_executor(Executor *executor) {
 void EventLoop::add_executor(Executor *executor) {
     aThread *thread;
     if (!thread_pool.empty()) {
-        thread = *thread_pool.erase(thread_pool.begin());
+        thread = *thread_pool.begin();
+        thread_pool.erase(thread_pool.begin());
     } else {
         thread = new aThread;
     }
@@ -221,7 +223,8 @@ void stop_thread(aThread *thread) {
 
 void EventLoop::add_thread(aThread *thread) {
     if (thread_pool.size() >= THREAD_POLL_SIZE) {
-        thread->stop();
+        auto re = thread->stop();
+        assert(re);
         delete thread;
     } else {
         thread_pool.push_back(thread);
@@ -238,8 +241,9 @@ void EventLoop::wakeup_notify() {
 }
 
 
-void Future::set() {
+void Future::set(void *value) {
     flag = true;
+    this->val = value;
 }
 
 void Future::clear() {
@@ -339,6 +343,12 @@ void Executor::run() {
 }
 
 bool Executor::should_release() {
+    if (force_stopped) {
+        thread->force_stop();
+        delete thread;
+        error = 1;
+        return true;
+    }
     if (!thread->is_busy()) {
         stop_thread(thread);
         thread = NULL;
@@ -346,4 +356,8 @@ bool Executor::should_release() {
     } else {
         return false;
     }
+}
+
+void Executor::force_stop() {
+    force_stopped = true;
 }

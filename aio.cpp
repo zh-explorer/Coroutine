@@ -15,6 +15,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#define check_close if (is_close) { return -1; }
+
 int do_dns_req(dns_req *req);
 
 aio::aio(int domain, int type, int protocol) {
@@ -41,6 +43,7 @@ aio::aio(int fd) {
 }
 
 int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
+    check_close
     unsigned char buffer[BLOCK_SIZE];
     if (mode == read_imm) {
         // array buf will ret the actual data read when count > array_buf's data length
@@ -90,6 +93,7 @@ int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
 }
 
 int aio::write(unsigned char *buf, size_t count, enum WRITE_MODE write_mode) {
+    check_close
     int size_write = 0;
     while (true) {
         auto write_size = ::write(fileno, buf, count);
@@ -118,10 +122,12 @@ int aio::write(unsigned char *buf, size_t count, enum WRITE_MODE write_mode) {
 }
 
 int aio::bind(const struct sockaddr *addr, socklen_t addrlen) {
+    check_close
     return ::bind(fileno, addr, addrlen);
 }
 
 int aio::bind(int port) {
+    check_close
     if (port > 65535) {
         logger(ERR, stderr, "invalid port: %d", port);
         abort();
@@ -134,25 +140,34 @@ int aio::bind(int port) {
     return ::bind(fileno, reinterpret_cast<const sockaddr *>(&addr), sizeof(addr));
 }
 
-int aio::get_addr(char *url, struct in_addr *ip) {
-    dns_req req;
-    req.url = url;
-    req.ip = ip;
-    Executor executor(reinterpret_cast<void *(*)(void *)>(do_dns_req), &req);
-    executor.run();
-    return (long int) executor.ret_val;
-}
 
 int aio::close() {
+    if (is_close) {
+        return 0;
+    }
+    IO *re = static_cast<IO *>(current_event->poll.delete_write(fileno));
+    if (re) {
+        poll_result a(fileno, ERROR, re, EBADFD);
+        re->get_result(a);
+    }
+    IO *re2 = static_cast<IO *>(current_event->poll.delete_read(fileno));
+    if (re) {
+        poll_result a(fileno, ERROR, re2, EBADFD);
+        re->get_result(a);
+    }
+    is_close = true;
     return ::close(fileno);
 }
 
 aio::~aio() {
-    close();
+    if (!is_close) {
+        close();
+    }
 }
 
 
 int aio_client::connect(const struct sockaddr *addr, socklen_t addrlen) {
+    check_close
     ::connect(fileno, addr, addrlen);
     IO io(fileno);
     io.wait_write();
@@ -164,6 +179,7 @@ int aio_client::connect(const struct sockaddr *addr, socklen_t addrlen) {
 }
 
 int aio_client::connect(char *addr, int port) {
+    check_close
     struct sockaddr_in sock_addr{};
     memset(&sock_addr, 0, sizeof(sock_addr));
     struct in_addr ip{};
@@ -180,11 +196,15 @@ int aio_client::connect(char *addr, int port) {
 }
 
 int aio_server::listen(int backlog) {
+    check_close
     return ::listen(fileno, backlog);
 }
 
 aio *aio_server::accept() {
     int fd;
+    if (is_close) {
+        return NULL;
+    }
     while (true) {
         fd = ::accept(fileno, NULL, NULL);
         if (fd == -1) {
@@ -204,13 +224,39 @@ aio *aio_server::accept() {
     }
 }
 
+
+int aio_client::get_addr(char *url, struct in_addr *ip) {
+    dns_req req;
+    req.url = url;
+    req.ip = ip;
+    executor = new Executor(reinterpret_cast<void *(*)(void *)>(do_dns_req), &req);
+    executor->run();
+    if (executor->error) {
+        delete executor;
+        return -1;
+    }
+    int ret_val = (long int) executor->ret_val;
+    delete executor;
+    executor = NULL;
+    return ret_val;
+}
+
+int aio_client::close() {
+    if (executor) {
+        executor->force_stop();
+    }
+    return aio::close();
+}
+
 int do_dns_req(dns_req *req) {
-    struct hostent *host;
-    host = gethostbyname(req->url);
-    if (host == NULL || host->h_addrtype == AF_INET6) {
+    struct hostent host, *phost;
+    char buffer[8192];
+    int error_code;
+    int re = gethostbyname_r(req->url, &host, buffer, 8192, &phost, &error_code);
+    if (phost == NULL || phost->h_addrtype == AF_INET6) {
         logger(ERR, stderr, "dns request failed");
         return -1;
     }
-    memcpy(&req->ip->s_addr, host->h_addr, 4);
+    memcpy(&req->ip->s_addr, phost->h_addr, 4);
     return 0;
 }

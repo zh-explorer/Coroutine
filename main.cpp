@@ -6,7 +6,11 @@
 #include <cstring>
 #include "log.h"
 
+// TODO: fix iter
+
 void a1(char *message);
+
+void a2(char *message);
 
 void b1(char *message);
 
@@ -26,7 +30,7 @@ int main() {
     setbuf(stdin, 0);
     setbuf(stdout, 0);
     setbuf(stderr, 0);
-    Coroutine *a = new Coroutine(reinterpret_cast<void *(*)(void *)>(a1), (void *) "hello a");
+    Coroutine *a = new Coroutine(reinterpret_cast<void *(*)(void *)>(a2), (void *) "hello a");
     Coroutine *b = new Coroutine(reinterpret_cast<void *(*)(void *)>(b1), (void *) "hello b");
     a->add_done_callback(a0, NULL);
     b->add_done_callback(b0, NULL);
@@ -45,7 +49,7 @@ void recv_all(aio *io) {
             return;
         }
         auto write_re = io->write(buffer, read_re, write_any);
-       if (write_re == -1) {
+        if (write_re == -1) {
             logger(INFO, stderr, "connect is close");
             return;
         }
@@ -54,6 +58,24 @@ void recv_all(aio *io) {
 
 void clean_coro(Coroutine *coro, void *data) {
     delete coro;
+}
+
+void a2(char *message) {
+    unsigned char buffer[0x1000];
+    aio_client io(AF_INET, SOCK_STREAM, 0);
+    io.connect("127.0.0.1", 8080);
+    while (true) {
+        auto read_re = io.read(buffer, 0x1000, read_any);
+        if (read_re == 1) {
+            logger(INFO, stderr, "connect is close");
+            return;
+        }
+        auto write_re = io.write(buffer, read_re, write_any);
+        if (write_re == -1) {
+            logger(INFO, stderr, "connect is close");
+            return;
+        }
+    }
 }
 
 void a1(char *message) {

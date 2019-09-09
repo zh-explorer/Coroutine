@@ -42,22 +42,25 @@ bool aThread::stop() {
     if (is_running) {           // we can not stop a running thread
         return false;
     }
+    if (mark_stop) {
+        return true;        // the thread already stop
+    }
     this->mark_stop = true;
-    cv.notify_all();
+    cv.notify_one();
     lk.unlock();
-    thread.join();
+    pthread_join(thread_id, NULL);
     return true;
 }
 
 bool aThread::is_busy() {
     std::unique_lock<std::mutex> lk(m);
     // a stop thread will be mark as busy
-    return is_running;
+    return is_running || mark_stop;
 }
 
 bool aThread::run(Executor *new_executor) {
     std::unique_lock<std::mutex> lk(m);
-    if (is_running) {
+    if (is_running || mark_stop) {
         // this thread is running or is stop
         return false;
     }
@@ -70,11 +73,10 @@ bool aThread::run(Executor *new_executor) {
     return true;
 }
 
-aThread::~aThread() {
-    if (!stop()) {
-        // the thread is running, we send a SIGKILL to force thread stop.
-        pthread_kill(thread_id, SIGKILL);
-    }
+void aThread::force_stop() {
+    pthread_cancel(thread_id);
+    is_running = false;
+    mark_stop = true;
 }
 
 

@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "unit/array_buf.h"
+#include "async.h"
 
 enum READ_MODE {
     read_fix,  // read data until size reach count
@@ -38,8 +39,6 @@ public:
 
     int read(unsigned char *buf, size_t count, enum READ_MODE mode = read_fix);
 
-    int get_addr(char *url, struct in_addr *ip);
-
     // get the cache data size.
     unsigned int cache_size() {
         return arrayBuf.length();
@@ -49,9 +48,10 @@ public:
 
     int bind(int port);
 
-    int close();
+    virtual int close();
 
     int fileno;
+    bool is_close = false;
 private:
     array_buf arrayBuf;
 
@@ -66,6 +66,13 @@ public:
     int connect(const struct sockaddr *addr, socklen_t addrlen);
 
     int connect(char *addr, int port);
+
+    int get_addr(char *url, struct in_addr *ip);
+
+    int close() override;
+
+private:
+    Executor *executor = NULL;
 };
 
 class aio_server : public aio {

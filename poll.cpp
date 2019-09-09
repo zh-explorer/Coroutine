@@ -96,11 +96,10 @@ void *EPoll::delete_read(int fd) {
     int result;
     if (iter == fds.end()) {
         // this should not happen
-        logger(ERR, stderr, "try to delete a not exist fd %d", fd);
+//        logger(ERR, stderr, "try to delete a not exist fd %d", fd);
         return NULL;
     }
     auto re = (*iter).second.delete_read();
-    fds.erase(iter);
     if ((*iter).second.in_poll()) {
         result = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, (*iter).second.ret_ev());
     } else {
@@ -109,6 +108,7 @@ void *EPoll::delete_read(int fd) {
     if (result == -1) {
         logger(ERR, stderr, "epoll ctl : %s", strerror(errno));
     }
+    fds.erase(iter);
     return re;
 }
 
@@ -117,7 +117,7 @@ void *EPoll::delete_write(int fd) {
     int result;
     if (iter == fds.end()) {
         // this should not happen
-        logger(ERR, stderr, "try to delete a not exist fd %d", fd);
+//        logger(ERR, stderr, "try to delete a not exist fd %d", fd);
         return NULL;
     }
     auto re = (*iter).second.delete_write();

@@ -14,6 +14,7 @@
 
 #define THREAD_POLL_SIZE 10
 
+
 class Coroutine;
 
 class Future;
@@ -33,6 +34,8 @@ void asleep_to(time_t timestamp);
 void asleep(int second);
 
 void wakeup_notify();
+
+void add_event(Event *e, int timeout);
 
 class EventLoop {
 public:
@@ -94,7 +97,7 @@ class Future : public Event {
 public:
     bool wait(int second = -1);
 
-    void set();
+    void set(void *value = NULL);
 
     void clear();
 
@@ -102,6 +105,7 @@ public:
 
     bool should_release() override;
 
+    void *val;
 private:
     bool flag = false;
 
@@ -159,6 +163,8 @@ public:
 
     bool should_release() override;
 
+    void force_stop();
+
     // the thread that run this executor
     aThread *thread = NULL;
 
@@ -168,8 +174,9 @@ public:
 
     void *ret_val = 0;
 
-    bool fin = false;
+    int error = 0;
 
+    bool force_stopped = false;
 };
 
 extern EventLoop *current_event;

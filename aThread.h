@@ -18,15 +18,19 @@ class aThread {
 public:
     explicit aThread();
 
-    virtual  ~aThread();
-
     bool run(Executor *executor);
+
+    void force_stop();
 
     void running();
 
     bool is_busy();
 
     bool stop();
+
+    pthread_t get_thread_id() {
+        return thread_id;
+    }
 
 private:
     Executor *executor = NULL;
@@ -38,8 +42,6 @@ private:
     std::mutex m;
 
     std::condition_variable cv;
-
-    std::thread thread;
 
     pthread_t thread_id = 0;
 };
