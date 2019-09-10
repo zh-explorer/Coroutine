@@ -8,8 +8,9 @@
 #include <cstdarg>
 #include <cstdio>
 
-#define STR_LEN_2048 2048
+#define STR_LEN_2048 (8192*2)
 
+// TODO need a better logger
 
 int logger(const char *level, const char *pFile, const char *pFuncName, int iLineNumb, FILE *pLogHandle, const char *fmt, ...) {
     if (NULL == pLogHandle || NULL == pFile || '\0' == pFile[0] || NULL == pFuncName || '\0' == pFuncName[0])

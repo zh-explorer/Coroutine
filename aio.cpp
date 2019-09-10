@@ -252,10 +252,14 @@ int do_dns_req(dns_req *req) {
     struct hostent host, *phost;
     char buffer[8192];
     int error_code;
+    auto t = time(NULL);
     int re = gethostbyname_r(req->url, &host, buffer, 8192, &phost, &error_code);
     if (phost == NULL || phost->h_addrtype == AF_INET6) {
         logger(ERR, stderr, "dns request failed");
         return -1;
+    }
+    if (time(NULL) - t > 1) {
+        logger(ERR, stderr, "dns slow %d", time(NULL) - t);
     }
     memcpy(&req->ip->s_addr, phost->h_addr, 4);
     return 0;

@@ -46,7 +46,7 @@ private:
     pthread_t thread_id = 0;
 };
 
-
+// TODO use lambda
 void thread_caller(aThread *thread);
 
 #endif //COROUTINE_ATHREAD_H

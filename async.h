@@ -93,6 +93,8 @@ public:
 
 };
 
+// TODO event should check status before go into sleep
+
 class Future : public Event {
 public:
     bool wait(int second = -1);
