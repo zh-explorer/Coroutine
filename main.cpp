@@ -6,8 +6,6 @@
 #include <cstring>
 #include "log.h"
 
-// TODO: fix iter
-
 void a1(char *message);
 
 void a2(char *message);

@@ -57,7 +57,7 @@ bool EPoll::add_read(int fd, void *data) {
     auto iter = fds.find(fd);
     int result;
     if (iter == fds.end()) {
-        auto p = fds.emplace(fd, fd).first;
+        auto p = fds.emplace(fd, poll_ev(fd)).first;
         p->second.add_read(data);
         result = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, p->second.ret_ev());
     } else {
@@ -76,7 +76,9 @@ bool EPoll::add_write(int fd, void *data) {
     auto iter = fds.find(fd);
     int result;
     if (iter == fds.end()) {
-        auto p = fds.emplace(fd, fd).first;
+        // TODO: this is strange, for my ubuntu18.04 the code below can work. I guess g++ version different
+//        auto p = fds.emplace(fd, poll_ev(fd)).first;
+        auto p = fds.emplace(fd, poll_ev(fd)).first;
         p->second.add_write(data);
         result = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, p->second.ret_ev());
     } else {

@@ -189,10 +189,6 @@ void EventLoop::add_event(Event *e, int timeout) {
     if (timeout != -1) {
         time_t wait_timestamp = time(NULL) + timeout;
         auto iter = this->time_event_list.find(wait_timestamp);
-        // TODO: not sure
-//        if (iter == this->time_event_list.end()) {
-//            this->time_event_list[wait_timestamp] = a;
-//        }
         this->time_event_list[wait_timestamp].push_back(event_pair(e, current_run));
     } else {
         this->event_list.push_back(event_pair(e, current_run));
@@ -255,6 +251,9 @@ int Future::is_set() {
 }
 
 bool Future::wait(int timeout) {
+    if (is_set()) {
+        return true;
+    }
     add_event(this, timeout);
     wait_event();
     return is_set();
@@ -267,6 +266,9 @@ bool Future::should_release() {
 
 void Sleep::sleep(int second) {
     assert(second >= 0);
+    if (second == 0) {
+        return;
+    }
     add_event(this, second);
     wait_event();
 }

@@ -10,7 +10,12 @@
 #include <pthread.h>
 
 aThread::aThread() {
-    auto re = pthread_create(&thread_id, NULL, reinterpret_cast<void *(*)(void *)>(thread_caller), this);
+    auto caller = [](void *thread) -> void * {
+        auto t = (aThread *) thread;
+        t->running();
+        return NULL;
+    };
+    auto re = pthread_create(&thread_id, NULL, caller, this);
     if (re) {
         logger(ERR, stderr, "thread create failed");
         exit(-1);
@@ -79,7 +84,3 @@ void aThread::force_stop() {
     mark_stop = true;
 }
 
-
-void thread_caller(aThread *thread) {
-    thread->running();
-}
