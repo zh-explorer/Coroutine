@@ -11,8 +11,10 @@
 #include <cassert>
 #include <signal.h>
 #include <pthread.h>
+#include <cstring>
 
 // TODO: do not support thread. We should store this in TLS
+
 EventLoop *current_event;
 
 void empty_handler(int signo) {}
@@ -25,12 +27,12 @@ EventLoop::EventLoop() {
 
     // we block the SIGUSR1, when the executor thread fin, send a SIGUSR1 to this thread
     // and epoll_pwait will unblock this sig and wakeup.
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
+    pthread_sigmask(SIG_BLOCK, &set, nullptr);
     struct sigaction action;
     action.sa_handler = empty_handler;
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
-    sigaction(SIGUSR1, &action, NULL);
+    sigaction(SIGUSR1, &action, nullptr);
 }
 
 // schedule give up cpu. buf the coro can run immediately
@@ -72,23 +74,15 @@ void EventLoop::loop() {
         if (re != 0) {      // this means all corn is exit.
             break;
         }
-        auto iter = this->active_list.begin();
-        if (iter == this->active_list.end()) {
-            break;
-        }
-        c = *iter;
-        this->active_list.erase(iter);
-        if (c->coro_status == INIT) {
+        while (true) {
+            auto iter = this->active_list.begin();
+            if (iter == this->active_list.end()) {
+                break;
+            }
+            c = *iter;
+            this->active_list.erase(iter);
             this->current_run = c;
-            c->func_run();
-        } else if (c->coro_status == RUNNING) {
-            this->current_run = c;
-            c->continue_run();
-        } else if (c->coro_status == END) {
-            c->func_stop();
-        } else {
-            // unknown status, should not happen
-            abort();
+            (*c)();
         }
     }
 }
@@ -108,7 +102,7 @@ int EventLoop::wakeup_coro() {
         }
 
         //first add all event witch is timeout
-        time_t timestamp = time(NULL);
+        time_t timestamp = time(nullptr);
         auto end = this->time_event_list.upper_bound(timestamp);
         auto iter2 = this->time_event_list.begin();
         while (iter2 != end) {
@@ -187,7 +181,7 @@ void EventLoop::add_event(Event *e, int timeout) {
     event_change = true;
     event_vector a;
     if (timeout != -1) {
-        time_t wait_timestamp = time(NULL) + timeout;
+        time_t wait_timestamp = time(nullptr) + timeout;
         auto iter = this->time_event_list.find(wait_timestamp);
         this->time_event_list[wait_timestamp].push_back(event_pair(e, current_run));
     } else {
@@ -233,7 +227,10 @@ void wakeup_notify() {
 }
 
 void EventLoop::wakeup_notify() {
-    pthread_kill(thread_id, SIGUSR1);
+    auto re = pthread_kill(thread_id, SIGUSR1);
+    if (re != 0) {
+        logger(ERR, stderr, "kill %s", strerror(errno));
+    }
 }
 
 
@@ -274,7 +271,7 @@ void Sleep::sleep(int second) {
 }
 
 void Sleep::sleep_to(time_t timestamp) {
-    this->sleep(timestamp - time(NULL));
+    this->sleep(timestamp - time(nullptr));
 }
 
 bool Sleep::should_release() {
@@ -333,9 +330,9 @@ void IO::get_result(poll_result re) {
     have_result = true;
 }
 
-Executor::Executor(void *(*func)(void *), void *argv) {
+Executor::Executor(Func *func) {
     this->call_func = func;
-    this->argv = argv;
+    this->new_call_func = false;
 }
 
 void Executor::run() {
@@ -353,7 +350,7 @@ bool Executor::should_release() {
     }
     if (!thread->is_busy()) {
         stop_thread(thread);
-        thread = NULL;
+        thread = nullptr;
         return true;
     } else {
         return false;

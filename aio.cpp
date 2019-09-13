@@ -17,7 +17,7 @@
 
 #define check_close if (is_close) { return -1; }
 
-int do_dns_req(dns_req *req);
+std::pair<sockaddr, unsigned int> *do_dns_req(char *url, unsigned short port);
 
 aio::aio(int domain, int type, int protocol) {
     fileno = socket(domain, type, protocol);
@@ -44,6 +44,9 @@ aio::aio(int fd) {
 
 int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
     check_close
+    if (!count) {
+        return 0;
+    }
     unsigned char buffer[BLOCK_SIZE];
     if (mode == read_imm) {
         // array buf will ret the actual data read when count > array_buf's data length
@@ -94,9 +97,12 @@ int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
 
 int aio::write(unsigned char *buf, size_t count, enum WRITE_MODE write_mode) {
     check_close
+    if (!count) {
+        return 0;
+    }
     int size_write = 0;
     while (true) {
-        auto write_size = ::write(fileno, buf, count);
+        auto write_size = ::write(fileno, buf + size_write, count - size_write);
         if (write_size == -1) {
             if (errno == EAGAIN) {
                 if (write_mode == write_any) {
@@ -182,16 +188,14 @@ int aio_client::connect(char *addr, int port) {
     check_close
     struct sockaddr_in sock_addr{};
     memset(&sock_addr, 0, sizeof(sock_addr));
-    struct in_addr ip{};
     // this should be done in a new thread
-    auto re = get_addr(addr, &ip);
-    if (re == 0) {
-        sock_addr.sin_family = AF_INET;
-        sock_addr.sin_port = htons(port);
-        sock_addr.sin_addr = ip;
-        return connect((struct sockaddr *) &sock_addr, sizeof(sockaddr_in));
+    auto re = get_addr(addr, port);
+    if (re != nullptr) {
+        auto conn_re = connect(&re->first, re->second);
+        delete re;
+        return conn_re;
     } else {
-        return re;
+        return -1;
     }
 }
 
@@ -203,20 +207,20 @@ int aio_server::listen(int backlog) {
 aio *aio_server::accept() {
     int fd;
     if (is_close) {
-        return NULL;
+        return nullptr;
     }
     while (true) {
-        fd = ::accept(fileno, NULL, NULL);
+        fd = ::accept(fileno, nullptr, nullptr);
         if (fd == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 IO io(fileno);
                 io.wait_read();
                 if (io.event == ERROR) {
                     errno = io.error_number;
-                    return NULL;
+                    return nullptr;
                 }
             } else {
-                return NULL;
+                return nullptr;
             }
         } else {
             return new aio(fd);
@@ -225,19 +229,17 @@ aio *aio_server::accept() {
 }
 
 
-int aio_client::get_addr(char *url, struct in_addr *ip) {
-    dns_req req;
-    req.url = url;
-    req.ip = ip;
-    executor = new Executor(reinterpret_cast<void *(*)(void *)>(do_dns_req), &req);
+std::pair<sockaddr, unsigned int> *aio_client::get_addr(char *url, unsigned short port) {
+    auto f = make_func(do_dns_req, url, port);
+    executor = new Executor(&f);
     executor->run();
     if (executor->error) {
         delete executor;
-        return -1;
+        return nullptr;
     }
-    int ret_val = (long int) executor->ret_val;
+    auto ret_val = f.r;
     delete executor;
-    executor = NULL;
+    executor = nullptr;
     return ret_val;
 }
 
@@ -248,19 +250,53 @@ int aio_client::close() {
     return aio::close();
 }
 
-int do_dns_req(dns_req *req) {
-    struct hostent host, *phost;
-    char buffer[8192];
-    int error_code;
-    auto t = time(NULL);
-    int re = gethostbyname_r(req->url, &host, buffer, 8192, &phost, &error_code);
-    if (phost == NULL || phost->h_addrtype == AF_INET6) {
-        logger(ERR, stderr, "dns request failed");
-        return -1;
+std::pair<sockaddr, unsigned int> *do_dns_req(char *url, unsigned short port) {
+    struct hostent *host;
+    auto t = clock();
+
+    char port_buf[6];
+    snprintf(port_buf, 6, "%u", port);
+
+    host = gethostbyname(url);
+    if (host == NULL || host->h_addrtype == AF_INET6) {
+        return nullptr;
     }
-    if (time(NULL) - t > 1) {
-        logger(ERR, stderr, "dns slow %d", time(NULL) - t);
+
+    sockaddr_in addr;
+    memcpy(&addr.sin_addr.s_addr, host->h_addr, 4);
+    addr.sin_port = htons(port);
+    addr.sin_family = AF_INET;
+
+    sockaddr saddr;
+    memcpy(&saddr, &addr, sizeof(addr));
+
+    if (clock() - t > CLOCKS_PER_SEC * 0.1) {
+        logger(ERR, stderr, "dns slow %ds", (clock() - t) / CLOCKS_PER_SEC);
     }
-    memcpy(&req->ip->s_addr, phost->h_addr, 4);
-    return 0;
+    return new std::pair<sockaddr, unsigned int>(saddr, sizeof(addr));
 }
+
+//std::pair<sockaddr, unsigned int> *do_dns_req(char *url, unsigned short port) {
+//    struct hostent host, *phost;
+//    char buffer[8192];
+//    int error_code;
+//    auto t = clock();
+//    struct addrinfo hints, *result;
+//    hints.ai_family = AF_INET;
+//    hints.ai_socktype = SOCK_STREAM;
+//    hints.ai_flags = 0;
+//    hints.ai_protocol = 0;
+//
+//    char port_buf[6];
+//    snprintf(port_buf, 6, "%u", port);
+//
+//    auto re = getaddrinfo(url, port_buf, &hints, &result);
+//    if (re != 0) {
+//        return nullptr;
+//    }
+//
+//    if (clock() - t > CLOCKS_PER_SEC * 0.1) {
+//        logger(ERR, stderr, "dns slow %ds", (clock() - t) / CLOCKS_PER_SEC);
+//    }
+//    return new std::pair<sockaddr, unsigned int>(*(result->ai_addr), result->ai_addrlen);
+//}

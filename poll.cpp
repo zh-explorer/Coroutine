@@ -17,8 +17,8 @@
 poll_ev::poll_ev(int fd) {
     events = EPOLLET | EPOLLRDHUP;
     this->fd = fd;
-    read_data = NULL;
-    write_data = NULL;
+    read_data = nullptr;
+    write_data = nullptr;
 }
 
 void poll_ev::add_read(void *data) {
@@ -34,14 +34,14 @@ void poll_ev::add_write(void *data) {
 void *poll_ev::delete_read() {
     events &= ~EPOLLIN;
     auto ret = read_data;
-    read_data = NULL;
+    read_data = nullptr;
     return ret;
 }
 
 void *poll_ev::delete_write() {
     events &= ~EPOLLOUT;
     auto ret = write_data;
-    write_data = NULL;
+    write_data = nullptr;
     return ret;
 }
 
@@ -57,7 +57,8 @@ bool EPoll::add_read(int fd, void *data) {
     auto iter = fds.find(fd);
     int result;
     if (iter == fds.end()) {
-        auto p = fds.emplace(fd, poll_ev(fd)).first;
+        auto p = fds.emplace(fd, fd).first;
+//        auto p = fds.emplace(fd, poll_ev(fd)).first;
         p->second.add_read(data);
         result = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, p->second.ret_ev());
     } else {
@@ -77,8 +78,8 @@ bool EPoll::add_write(int fd, void *data) {
     int result;
     if (iter == fds.end()) {
         // TODO: this is strange, for my ubuntu18.04 the code below can work. I guess g++ version different
+        auto p = fds.emplace(fd, fd).first;
 //        auto p = fds.emplace(fd, poll_ev(fd)).first;
-        auto p = fds.emplace(fd, poll_ev(fd)).first;
         p->second.add_write(data);
         result = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, p->second.ret_ev());
     } else {
@@ -99,13 +100,13 @@ void *EPoll::delete_read(int fd) {
     if (iter == fds.end()) {
         // this should not happen
 //        logger(ERR, stderr, "try to delete a not exist fd %d", fd);
-        return NULL;
+        return nullptr;
     }
     auto re = (*iter).second.delete_read();
     if ((*iter).second.in_poll()) {
         result = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, (*iter).second.ret_ev());
     } else {
-        result = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+        result = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
     }
     if (result == -1) {
         logger(ERR, stderr, "epoll ctl : %s", strerror(errno));
@@ -120,14 +121,14 @@ void *EPoll::delete_write(int fd) {
     if (iter == fds.end()) {
         // this should not happen
 //        logger(ERR, stderr, "try to delete a not exist fd %d", fd);
-        return NULL;
+        return nullptr;
     }
     auto re = (*iter).second.delete_write();
     fds.erase(iter);
     if ((*iter).second.in_poll()) {
         result = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, (*iter).second.ret_ev());
     } else {
-        result = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+        result = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
     }
     if (result == -1) {
         logger(ERR, stderr, "epoll ctl : %s", strerror(errno));
@@ -141,7 +142,7 @@ std::vector<poll_result> *EPoll::wait_poll(int timeout) {
     int result;
     auto fd_result = new std::vector<poll_result>;
     sigset_t sigmask;
-    pthread_sigmask(SIG_BLOCK, NULL, &sigmask);
+    pthread_sigmask(SIG_BLOCK, nullptr, &sigmask);
     sigdelset(&sigmask, SIGUSR1);
     result = epoll_pwait(epoll_fd, evs, 20, timeout * 1000, &sigmask);
     if (result == -1) {

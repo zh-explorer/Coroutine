@@ -13,9 +13,9 @@ aThread::aThread() {
     auto caller = [](void *thread) -> void * {
         auto t = (aThread *) thread;
         t->running();
-        return NULL;
+        return nullptr;
     };
-    auto re = pthread_create(&thread_id, NULL, caller, this);
+    auto re = pthread_create(&thread_id, nullptr, caller, this);
     if (re) {
         logger(ERR, stderr, "thread create failed");
         exit(-1);
@@ -26,7 +26,7 @@ void aThread::running() {
     while (true) {
         {
             std::unique_lock<std::mutex> lk(m);
-            while (!mark_stop && executor == NULL) {
+            while (!mark_stop && executor == nullptr) {
                 is_running = false;
                 cv.wait(lk);
             }
@@ -34,9 +34,10 @@ void aThread::running() {
                 return;
             }
         }
-        executor->ret_val = executor->call_func(executor->argv);
+        (*executor->call_func)();
         std::unique_lock<std::mutex> lk(m);
-        executor = NULL;
+        executor = nullptr;
+        is_running = false;
         // TODO_fin: need notify main thead that some work fin
         wakeup_notify();
     }
@@ -53,7 +54,7 @@ bool aThread::stop() {
     this->mark_stop = true;
     cv.notify_one();
     lk.unlock();
-    pthread_join(thread_id, NULL);
+    pthread_join(thread_id, nullptr);
     return true;
 }
 

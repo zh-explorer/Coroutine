@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cstring>
 #include "log.h"
+//#include "unit/func.h
 
 void a1(char *message);
 
@@ -12,12 +13,12 @@ void a2(char *message);
 
 void b1(char *message);
 
-void a0(Coroutine *c, void *data) {
+void a0(Coroutine *c) {
     delete (c);
     puts("a is fin");
 }
 
-void b0(Coroutine *c, void *data) {
+void b0(Coroutine *c) {
     delete (c);
     puts("b is fin");
 }
@@ -28,10 +29,14 @@ int main() {
     setbuf(stdin, 0);
     setbuf(stdout, 0);
     setbuf(stderr, 0);
-    Coroutine *a = new Coroutine(reinterpret_cast<void *(*)(void *)>(a2), (void *) "hello a");
-    Coroutine *b = new Coroutine(reinterpret_cast<void *(*)(void *)>(b1), (void *) "hello b");
-    a->add_done_callback(a0, NULL);
-    b->add_done_callback(b0, NULL);
+
+    Coroutine *a = new Coroutine(a1, (char *) "aaa");
+
+    Coroutine *b = new Coroutine(b1, (char *) "bbb");
+
+    a->add_done_callback(a0);
+
+    b->add_done_callback(b0);
     e = new EventLoop();
     e->add_to_poll(a);
     e->add_to_poll(b);
@@ -54,7 +59,7 @@ void recv_all(aio *io) {
     }
 }
 
-void clean_coro(Coroutine *coro, void *data) {
+void clean_coro(Coroutine *coro) {
     delete coro;
 }
 
@@ -85,12 +90,14 @@ void a1(char *message) {
     io.listen(30);
     while (true) {
         auto new_io = io.accept();
-        if (new_io == NULL) {
+        if (new_io == nullptr) {
             logger(ERR, stderr, "accept error");
             break;
         }
-        Coroutine *new_coro = new Coroutine(reinterpret_cast<void *(*)(void *)>(recv_all), new_io);
-        new_coro->add_done_callback(clean_coro, NULL);
+
+        Coroutine *new_coro = new Coroutine(recv_all, new_io);
+
+        new_coro->add_done_callback(clean_coro);
         add_to_poll(new_coro);
     }
 }

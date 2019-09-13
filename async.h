@@ -11,9 +11,9 @@
 #include "poll.h"
 #include <queue>
 #include "aThread.h"
+#include "unit/func.h"
 
 #define THREAD_POLL_SIZE 10
-
 
 class Coroutine;
 
@@ -91,13 +91,14 @@ class Event {
 public:
     virtual bool should_release() = 0;
 
+    virtual ~Event() = default;
 };
 
 class Future : public Event {
 public:
     bool wait(int second = -1);
 
-    void set(void *value = NULL);
+    void set(void *value = nullptr);
 
     void clear();
 
@@ -105,7 +106,7 @@ public:
 
     bool should_release() override;
 
-    void *val;
+    void *val{};
 private:
     bool flag = false;
 
@@ -157,7 +158,27 @@ public:
 
 class Executor : public Event {
 public:
-    Executor(void *(*func)(void *), void *argv);
+    explicit Executor(Func *func);
+
+    ~Executor() {
+        if (new_call_func) {
+            delete call_func;
+        }
+    }
+
+    template<class R, class ... ARGS>
+    explicit Executor(R (*func)(ARGS ...), ARGS ... args) {
+        auto f = new_func(func, args ...);
+        this->new_call_func = true;
+        this->call_func = f;
+    }
+
+    template<class R, class ... ARGS>
+    explicit Executor(std::function<R(ARGS...)> func, ARGS ... args) {
+        auto f = new_func(func, args ...);
+        this->new_call_func = true;
+        this->call_func = f;
+    }
 
     void run();
 
@@ -166,13 +187,10 @@ public:
     void force_stop();
 
     // the thread that run this executor
-    aThread *thread = NULL;
+    aThread *thread = nullptr;
 
-    void *(*call_func)(void *);
-
-    void *argv;
-
-    void *ret_val = 0;
+    bool new_call_func = false;
+    Func *call_func;
 
     int error = 0;
 

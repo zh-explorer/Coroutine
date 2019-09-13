@@ -7,8 +7,6 @@
 #include <csetjmp>
 #include "async.h"
 
-void start_func(Coroutine *coroutine, void *(*func)(void *));
-
 struct regs {
     uint64_t rax;
     uint64_t rbx;
@@ -77,27 +75,45 @@ struct regs {
     :               \
     :"m"((regs)->rbp), "m"((regs)->rsp));
 
-Coroutine::Coroutine(void *(*func)(void *), void *arg, size_t stack_size) {
+void Coroutine::init(Func *func, size_t stack_size) {
     this->call_func = func;
     this->stack_size = stack_size;
-//    this->stack_end = (unsigned char *) mmap(NULL, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
+//    this->stack_end = (unsigned char *) mmap(nullptr, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
 //                                             0);
 
     this->stack_end = static_cast<unsigned char *>(malloc(stack_size));
     this->stack_start = this->stack_end + stack_size;
-    this->arg = arg;
 }
 
-void Coroutine::func_run() {
+
+Coroutine::Coroutine(Func *func, size_t stack_size) {
+    init(func, stack_size);
+}
+
+// call the target function
+void Coroutine::call() {
+    (*call_func)();
+    coro_status = END;
+    schedule();
+}
+
+
+void Coroutine::start_run() {
     // we need save all register first
     struct regs r;
     this->coro_status = RUNNING;
+    auto func = [](Coroutine *coro) {
+        coro->call();
+    };
+    // convert to a function point so it call pass to asm
+    void (*f)(Coroutine *) = func;
+
     save_all_reg(&r);
     if (setjmp(main_env) == 0) {
         asm("movq %0, %%rsp;\n"
-            "call %3;\n"
+            "call %2;\n"
         :
-        : "m"(this->stack_start), "D"(this), "S"(this->call_func), "r"(start_func));
+        : "m"(this->stack_start), "D"(this), "r"(f));
     }
     restore_all_reg(&r);
 }
@@ -123,22 +139,33 @@ void Coroutine::schedule_back() {
 void Coroutine::func_stop() {
 //    munmap(this->stack_end, this->stack_size);
     free(this->stack_end);
-    this->stack_end = NULL;
+    this->stack_end = nullptr;
     if (this->done_func) {
-        this->done_func(this, done_callback_data);
+        (*this->done_func)();
     }
 }
 
-void Coroutine::add_done_callback(void (*func)(Coroutine *, void *), void *data) {
-    this->done_func = func;
-    this->done_callback_data = data;
+
+void Coroutine::operator()() {
+    if (coro_status == INIT) {
+        start_run();
+    } else if (coro_status == RUNNING) {
+        continue_run();
+    } else {
+        func_stop();
+    }
+}
+
+Coroutine::~Coroutine() {
+    if (new_done_func) {
+        delete this->done_func;
+    }
+    if (new_call_func) {
+        delete this->call_func;
+    }
 }
 
 
-// this is the first func in the new stack
-void start_func(Coroutine *coroutine, void *(*func)(void *)) {
-    coroutine->ret = func(coroutine->arg);
-    coroutine->coro_status = END;
-    schedule();
-}
+
+
 

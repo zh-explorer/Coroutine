@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include "unit/array_buf.h"
 #include "async.h"
 
@@ -19,12 +20,6 @@ enum READ_MODE {
 enum WRITE_MODE {
     write_all,
     write_any,
-};
-
-class dns_req {
-public:
-    char *url;
-    struct in_addr *ip;
 };
 
 class aio {
@@ -67,12 +62,12 @@ public:
 
     int connect(char *addr, int port);
 
-    int get_addr(char *url, struct in_addr *ip);
+    std::pair<sockaddr,unsigned int> * get_addr(char *url, unsigned short port);
 
     int close() override;
 
 private:
-    Executor *executor = NULL;
+    Executor *executor = nullptr;
 };
 
 class aio_server : public aio {

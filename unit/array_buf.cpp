@@ -42,13 +42,13 @@ void __buffer::clean() {
     memset(buf, 0, BLOCK_SIZE);
     start = buf;
     end = buf;
-    next = NULL;
+    next = nullptr;
 }
 
 void array_buf::init() {
     head = new __buffer();
     tail = head;
-    cache = NULL;
+    cache = nullptr;
     len = 0;
 }
 
