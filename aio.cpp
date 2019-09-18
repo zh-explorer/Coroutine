@@ -43,7 +43,7 @@ aio::aio(int fd) {
 }
 
 int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
-    check_close
+//    check_close
     if (!count) {
         return 0;
     }
@@ -66,15 +66,33 @@ int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
     }
 
     while (true) {
+        if (is_close) {
+            return -1;
+        }
         IO io(fileno);
         io.wait_read();
         if (io.event == ERROR) {
             // the fd maybe close
             errno = io.error_number;
-            return -1;
+            is_close = true;
+//            return -1;
         }
         while (true) {
             auto read_size = ::read(fileno, buffer, BLOCK_SIZE);
+            if (read_size > 0) {
+                arrayBuf.write(buffer, read_size);
+            }
+            if ((read_size == -1 && errno != EAGAIN) || is_close) {
+                if (mode == read_any && arrayBuf.length() != 0) {
+                    auto re = arrayBuf.read(buf, count);
+                    return re;
+                } else if (mode == read_fix && arrayBuf.length() >= count) {
+                    auto re = arrayBuf.read(buf, count);
+                    return re;
+                } else {
+                    return -1;
+                }
+            }
             if (read_size == 0 || (read_size == -1 && errno == EAGAIN)) {
                 // read end
                 if (mode == read_any) {
@@ -90,7 +108,6 @@ int aio::read(unsigned char *buf, size_t count, enum READ_MODE mode) {
                 }
                 break;
             }
-            arrayBuf.write(buffer, read_size);
         }
     }
 }
