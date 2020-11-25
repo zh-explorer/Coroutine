@@ -12,76 +12,77 @@
 aThread::aThread() {
     auto caller = [](void *thread) -> void * {
         auto t = (aThread *) thread;
-        t->running();
+        t->run();
         return nullptr;
     };
-    auto re = pthread_create(&thread_id, nullptr, caller, this);
+    auto re = pthread_create(&this->thread_id, nullptr, caller, this);
     if (re) {
         logger(ERR, stderr, "thread create failed");
         exit(-1);
     }
 }
 
-void aThread::running() {
+void aThread::run() {
     while (true) {
         {
-            std::unique_lock<std::mutex> lk(m);
-            while (!mark_stop && executor == nullptr) {
-                is_running = false;
-                cv.wait(lk);
+            std::unique_lock<std::mutex> lk(this->m);
+            while (!this->thread_stop && this->executor == nullptr) {
+                this->running = false;
+                this->cv.wait(lk);
             }
-            if (mark_stop) {
+            if (this->thread_stop) {  // stop the thread normally
                 return;
             }
         }
-        (*executor->call_func)();
-        std::unique_lock<std::mutex> lk(m);
-        executor = nullptr;
-        is_running = false;
-        // TODO_fin: need notify main thead that some work fin
+        (*this->executor->call_func)();
+        std::unique_lock<std::mutex> lk(this->m);
+        this->executor = nullptr;
+        this->running = false;
         wakeup_notify();
     }
 }
 
 bool aThread::stop() {
-    std::unique_lock<std::mutex> lk(m);
-    if (is_running) {           // we can not stop a running thread
+    std::unique_lock<std::mutex> lk(this->m);
+    if (this->running) {           // we can not stop a run thread
         return false;
     }
-    if (mark_stop) {
+    if (this->thread_stop) {
         return true;        // the thread already stop
     }
-    this->mark_stop = true;
-    cv.notify_one();
+    this->thread_stop = true;
+    this->cv.notify_one();
     lk.unlock();
-    pthread_join(thread_id, nullptr);
+    // the thread will return soon
+    pthread_join(this->thread_id, nullptr);
     return true;
 }
 
 bool aThread::is_busy() {
     std::unique_lock<std::mutex> lk(m);
     // a stop thread will be mark as busy
-    return is_running || mark_stop;
+    return this->running || this->thread_stop;
 }
 
-bool aThread::run(Executor *new_executor) {
-    std::unique_lock<std::mutex> lk(m);
-    if (is_running || mark_stop) {
-        // this thread is running or is stop
+bool aThread::start(Executor *executor) {
+    std::unique_lock<std::mutex> lk(this->m);
+    if (this->running || this->thread_stop) {
+        // this thread is run or is stop
         return false;
     }
 
-    is_running = true;
-    this->executor = new_executor;
-    cv.notify_one();
+    this->running = true;
+    this->executor = executor;
+    this->cv.notify_one();
 
-    // task start to run
+    // task start to start
     return true;
 }
 
+// force to stop a thead is not a good choose
 void aThread::force_stop() {
-    pthread_cancel(thread_id);
-    is_running = false;
-    mark_stop = true;
+    pthread_cancel(this->thread_id);
+    this->running = false;
+    this->thread_stop = true;
 }
 

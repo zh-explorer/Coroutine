@@ -16,12 +16,8 @@ int logger(const char *level, const char *pFile, const char *pFuncName, int iLin
     if (nullptr == pLogHandle || nullptr == pFile || '\0' == pFile[0] || nullptr == pFuncName || '\0' == pFuncName[0])
         return -1;
 
-    time_t timeSecs = time(nullptr);
-    struct tm *timeInfo = localtime(&timeSecs);
     char acTitle[STR_LEN_2048] = {0};
-    snprintf(acTitle, sizeof(acTitle), "[%s] [%d%02d%02d/%02d:%02d:%02d] [%s] [%s:%d]", level,
-             timeInfo->tm_year + 1900, timeInfo->tm_mon + 1, timeInfo->tm_mday,
-             timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec, pFile, pFuncName, iLineNumb);
+    snprintf(acTitle, sizeof(acTitle), "[%s] [%s] [%s:%d]", level,pFile, pFuncName, iLineNumb);
 
     size_t iLen = strlen(acTitle);
     fwrite(acTitle, iLen, 1, pLogHandle);

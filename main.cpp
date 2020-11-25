@@ -1,6 +1,6 @@
 #include <iostream>
 #include "async.h"
-#include "Coroutine.h"
+#include "Coroutine/Coroutine.h"
 #include "aio.h"
 #include <unistd.h>
 #include <cstring>
@@ -14,12 +14,12 @@ void a2(char *message);
 void b1(char *message);
 
 void a0(Coroutine *c) {
-    delete (c);
+    c->destroy();
     puts("a is fin");
 }
 
 void b0(Coroutine *c) {
-    delete (c);
+    c->destroy();
     puts("b is fin");
 }
 
@@ -60,7 +60,7 @@ void recv_all(aio *io) {
 }
 
 void clean_coro(Coroutine *coro) {
-    delete coro;
+     coro->destroy();
 }
 
 void a2(char *message) {

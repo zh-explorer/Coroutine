@@ -41,7 +41,7 @@ public:
 
 //    unsigned int peek(unsigned char *buffer, unsigned int size);
 
-    unsigned int length();
+    unsigned int length() const;
 
 
 private:
@@ -50,6 +50,10 @@ private:
     void pop_block();
 
     void push_block();
+
+    unsigned int read_block(unsigned char *buffer, unsigned int size);
+
+    unsigned int write_block(unsigned char *buffer, unsigned int size);
 
     unsigned int len;
     __buffer *head;

@@ -186,7 +186,7 @@ public:
 
     void force_stop();
 
-    // the thread that run this executor
+    // the thread that start this executor
     aThread *thread = nullptr;
 
     bool new_call_func = false;

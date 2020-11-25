@@ -5,7 +5,7 @@
 #include "Coroutine.h"
 #include <sys/mman.h>
 #include <csetjmp>
-#include "async.h"
+#include "../async.h"
 
 struct regs {
     uint64_t rax;
@@ -80,7 +80,6 @@ void Coroutine::init(Func *func, size_t stack_size) {
     this->stack_size = stack_size;
 //    this->stack_end = (unsigned char *) mmap(nullptr, stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
 //                                             0);
-
     this->stack_end = static_cast<unsigned char *>(malloc(stack_size));
     this->stack_start = this->stack_end + stack_size;
 }
@@ -100,7 +99,7 @@ void Coroutine::call() {
 
 void Coroutine::start_run() {
     // we need save all register first
-    struct regs r;
+    struct regs r{};
     this->coro_status = RUNNING;
     auto func = [](Coroutine *coro) {
         coro->call();
@@ -119,7 +118,7 @@ void Coroutine::start_run() {
 }
 
 void Coroutine::continue_run() {
-    struct regs r;
+    struct regs r{};
     save_all_reg(&r);
     if (setjmp(main_env) == 0) {
         longjmp(this->coro_env, 1);
@@ -157,12 +156,27 @@ void Coroutine::operator()() {
 }
 
 Coroutine::~Coroutine() {
-    if (new_done_func) {
-        delete this->done_func;
+//    if (new_done_func) {
+//        delete this->done_func;
+//    }
+//    if (new_call_func) {
+//        delete this->call_func;
+//    }
+
+    // we cancel a coro than not start
+
+    free(this->stack_end);
+    this->stack_end = nullptr;
+    delete this->done_func;
+    delete this->call_func;
+}
+
+void Coroutine::destroy() {
+    if (this->coro_status == RUNNING) {
+        // destroy a coro witch is run is dangerous
+        throw CoroutineStopException();
     }
-    if (new_call_func) {
-        delete this->call_func;
-    }
+    delete this;
 }
 
 

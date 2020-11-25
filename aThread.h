@@ -18,26 +18,30 @@ class aThread {
 public:
     explicit aThread();
 
-    bool run(Executor *executor);
+    aThread(aThread &) = delete;
+
+    aThread(aThread &&) = delete;
+
+    bool start(Executor *executor);
 
     void force_stop();
 
-    void running();
+    void run();
 
     bool is_busy();
 
     bool stop();
 
-    pthread_t get_thread_id() {
+    pthread_t get_thread_id() const {
         return thread_id;
     }
 
 private:
     Executor *executor = nullptr;
 
-    bool mark_stop = false;
+    bool thread_stop = false;
 
-    bool is_running = false;
+    bool running = false;
 
     std::mutex m;
 

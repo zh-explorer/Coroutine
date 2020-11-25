@@ -1,7 +1,7 @@
 # Coroutine
 This is library add coroutine support for C++. The design of this library is like Python's Asyncio.
 User can create coroutine to do some async task use this library easily.
-Every coroutine will run code in an independent stack. And multiple coroutines can run parallelism
+Every coroutine will start code in an independent stack. And multiple coroutines can start parallelism
 
 ## Example
 https://github.com/zh-explorer/shadow

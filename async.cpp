@@ -4,7 +4,7 @@
 
 #include <cstdint>
 #include "async.h"
-#include "Coroutine.h"
+#include "Coroutine/Coroutine.h"
 #include "log.h"
 #include <cstdio>
 #include <unistd.h>
@@ -35,7 +35,7 @@ EventLoop::EventLoop() {
     sigaction(SIGUSR1, &action, nullptr);
 }
 
-// schedule give up cpu. buf the coro can run immediately
+// schedule give up cpu. buf the coro can start immediately
 void schedule() {
     current_event->schedule();
 }
@@ -61,7 +61,7 @@ void add_to_poll(Coroutine *coro) {
 
 void EventLoop::add_to_poll(Coroutine *coro) {
     this->active_list.push_back(coro);
-    coro->loop = this;
+//    coro->loop = this;
 }
 
 // the main loop for async
@@ -203,7 +203,7 @@ void EventLoop::add_executor(Executor *executor) {
     }
     assert(!thread->is_busy());
     executor->thread = thread;
-    thread->run(executor);
+    thread->start(executor);
     thread_count++;
 }
 

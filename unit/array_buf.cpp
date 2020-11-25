@@ -62,72 +62,124 @@ array_buf::array_buf(unsigned char *buffer, unsigned int size) {
 }
 
 unsigned int array_buf::read(unsigned char *buffer, unsigned int size) {
-    unsigned int already_read;
-    unsigned int re;
-    re = head->length();
-    if (re >= size) {
-        head->read(buffer, size);
-
-        if (re == size) {
-            pop_block();
+    unsigned int already_read = 0;
+    unsigned int read_result;
+    while (already_read < size) { // already_read != size
+        read_result = this->read_block(buffer + already_read, size - already_read);
+        if (read_result == 0) {   // no more data
+            return already_read;
         }
-        len -= size;
+        already_read += read_result;
+    }
+    return size;    // all data request is read
+}
+
+// read data from first block and return size of data read
+unsigned int array_buf::read_block(unsigned char *buffer, unsigned int size) {
+    unsigned data_size = this->head->length();
+    if (!data_size) {
+        return 0;
+    } else if (data_size > size) {
+        this->head->read(buffer, size);
         return size;
-    } else if (size <= length()) {
-        already_read = 0;
-
-        while (true) {
-            re = head->length();
-            if (re >= (size - already_read)) {
-                head->read(buffer + already_read, size - already_read);
-                if (re == (size - already_read)) {
-                    pop_block();
-                }
-                len -= size;
-                return size;
-            } else {
-                head->read(buffer + already_read, re);
-                pop_block();
-                already_read += re;
-            }
-        }
-    } else { // size > length()
-        already_read = 0;
-        while (head->length()) {
-            re = head->length();
-            head->read(buffer + already_read, re);
-            already_read += re;
-            pop_block();
-        }
-        re = len;
-        len = 0;
-        return re;
+    } else {
+        this->head->read(buffer, data_size);
+        this->pop_block();  // we read all data from block, pop it
+        return data_size;
     }
 }
 
+//unsigned int array_buf::read(unsigned char *buffer, unsigned int size) {
+//    unsigned int already_read = 0;
+//    unsigned int result;
+//    result = this->head->length();
+//    if (result >= size) {
+//        this->head->read(buffer, size);
+//
+//        if (result == size) {
+//            pop_block();
+//        }
+//        this->len -= size;
+//        return size;
+//    } else if (size <= length()) {
+//
+//        while (true) {
+//            result = this->head->length();
+//            if (result >= (size - already_read)) {
+//                head->read(buffer + already_read, size - already_read);
+//                if (result == (size - already_read)) {
+//                    pop_block();
+//                }
+//                this->len -= size;
+//                return size;
+//            } else {
+//                this->head->read(buffer + already_read, result);
+//                pop_block();
+//                already_read += result;
+//            }
+//        }
+//    } else { // size > length()
+//        while (this->head->length()) {
+//            result = this->head->length();
+//            this->head->read(buffer + already_read, result);
+//            already_read += result;
+//            this->pop_block();
+//        }
+//        result = this->len;
+//        this->len = 0;
+//        return result;
+//    }
+//}
+//
+//unsigned int array_buf::write2(unsigned char *buffer, unsigned int size) {
+//    unsigned int re;
+//    unsigned int already_write = 0;
+//    re = tail->remain();
+//    if (size <= re) {
+//        tail->write(buffer, size);
+//        if (size == re) {
+//            push_block();
+//        }
+//        len += size;
+//        return size;
+//    } else {
+//        while (true) {
+//            re = tail->remain();
+//            if (re > (size - already_write)) {
+//                tail->write(buffer + already_write, size - already_write);
+//                len += size;
+//                return size;
+//            }
+//            tail->write(buffer + already_write, re);
+//            already_write += re;
+//            push_block();
+//        }
+//    }
+//}
+
 unsigned int array_buf::write(unsigned char *buffer, unsigned int size) {
-    unsigned int re;
     unsigned int already_write = 0;
-    re = tail->remain();
-    if (size <= re) {
-        tail->write(buffer, size);
-        if (size == re) {
-            push_block();
-        }
-        len += size;
+    unsigned int write_result;
+    while (already_write < size) {
+        write_result = this->write_block(buffer + already_write, size - already_write);
+        already_write += write_result;
+    }
+    return size;
+}
+
+
+unsigned int array_buf::write_block(unsigned char *buffer, unsigned int size) {
+    unsigned space_remain = this->tail->remain();
+    if (!space_remain) {
+        this->push_block();
+        space_remain = this->tail->remain();
+    }
+    if (space_remain > size) {
+        this->tail->write(buffer, size);
         return size;
     } else {
-        while (true) {
-            re = tail->remain();
-            if (re > (size - already_write)) {
-                tail->write(buffer + already_write, size - already_write);
-                len += size;
-                return size;
-            }
-            tail->write(buffer + already_write, re);
-            already_write += re;
-            push_block();
-        }
+        this->tail->write(buffer, space_remain);
+        return space_remain;
     }
 }
 
@@ -135,41 +187,42 @@ unsigned int array_buf::write(unsigned char *buffer, unsigned int size) {
 // pop block from head
 void array_buf::pop_block() {
     __buffer *p;
-    if (head->next) {
-        p = head;
-        head = head->next;
-        if (cache) {
+    if (this->head->next) {
+        p = this->head;
+        this->head = this->head->next;
+        if (this->cache) {
             delete p;
         } else {
-            cache = p;
+            this->cache = p;
             p->clean();
         }
     } else {
-        head->clean();
+        // we should remain at last one block in list, os that tail will never change in pop
+        this->head->clean();
     }
 }
 
-// push block to tail
+// push a new block to tail
 void array_buf::push_block() {
     __buffer *p;
     if (cache) {
-        p = cache;
-        cache = 0;
+        p = this->cache;      // cache is cleaned when set
+        this->cache = nullptr;
     } else {
         p = new __buffer;
     }
-    tail->next = p;
-    tail = p;
+    this->tail->next = p;     // there is at list one block in list, so head will never change in push
+    this->tail = p;
 }
 
-unsigned int array_buf::length() {
-    return len;
+unsigned int array_buf::length() const {
+    return this->len;
 }
 
 array_buf::~array_buf() {
-    delete cache;
+    delete this->cache;
     __buffer *p2;
-    __buffer *p = head;
+    __buffer *p = this->head;
     while (p) {
         p2 = p;
         p = p->next;
@@ -177,5 +230,7 @@ array_buf::~array_buf() {
     }
 
 }
+
+
 
 

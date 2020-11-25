@@ -61,6 +61,7 @@ public:
 
 };
 
+// specialization for func which return void
 template<class  ... ARGS>
 class func<void, ARGS...> : public Func {
 public:

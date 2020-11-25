@@ -8,8 +8,15 @@
 #include <cstdlib>
 #include <cstdint>
 #include <csetjmp>
-#include "async.h"
-#include "unit/func.h"
+#include "../async.h"
+#include "../unit/func.h"
+#include <exception>
+
+class CoroutineStopException : public std::exception {
+    const char *what() const noexcept override {
+        return "try to destroy a coroutine which is run";
+    }
+};
 
 enum coro_STATUS {
     INIT,
@@ -24,34 +31,39 @@ public:
     template<class R, class ... ARGS>
     explicit Coroutine(R (*func)(ARGS ...), ARGS ... args) {
         auto f = new_func(func, args ...);
-        this->new_call_func = true;
+//        this->new_call_func = true;
         init(f);
     }
 
     template<class R, class ... ARGS>
     explicit Coroutine(std::function<R(ARGS...)> func, ARGS ... args) {
         auto f = new_func(func, args ...);
-        this->new_call_func = true;
+//        this->new_call_func = true;
         init(f);
     }
 
     template<class R, class ... ARGS>
     Coroutine(size_t stack_size, R (*func)(ARGS ...), ARGS ... args) {
         auto f = new_func(func, args ...);
-        this->new_call_func = true;
+//        this->new_call_func = true;
         init(f, stack_size);
     }
 
     template<class R, class ... ARGS>
     Coroutine(size_t stack_size, std::function<R(ARGS...)> func, ARGS ... args) {
         auto f = new_func(func, args ...);
-        this->new_call_func = true;
+//        this->new_call_func = true;
         init(f, stack_size);
     }
 
+    // disable any copy or mov construct
+    Coroutine(const Coroutine &) = delete;
+
+    Coroutine(const Coroutine &&) = delete;
+
     void init(Func *func, size_t stack_size = 0x200000);
 
-    ~Coroutine();
+    void destroy();
 
     void schedule_back();
 
@@ -64,14 +76,14 @@ public:
     template<class R, class ... ARGS>
     void add_done_callback(R (*func)(Coroutine *, ARGS...), ARGS ... args) {
         auto f = new_func(func, this, args...);
-        this->new_done_func = true;
+//        this->new_done_func = true;
         add_done_callback(f);
     }
 
     template<class R, class ... ARGS>
     void add_done_callback(std::function<R(ARGS...)> func, ARGS ... args) {
         auto f = new_func(func, this, args...);
-        this->new_done_func = true;
+//        this->new_done_func = true;
         add_done_callback(f);
     }
 
@@ -83,23 +95,26 @@ public:
 
     void operator()();
 
-    EventLoop *loop{};
+//    EventLoop *loop{};
     jmp_buf main_env{};
     enum coro_STATUS coro_status = INIT;
-    void *ret{};
+//    void *ret{};
     jmp_buf coro_env{};
 
 
 private:
-    time_t run_time{};
+    // TODO: count time of coro start time for debug
+//    time_t run_time{};
     size_t stack_size{};
     unsigned char *stack_end{};
     unsigned char *stack_start{};
 
-    bool new_call_func = false;
-    Func *call_func{};
-    bool new_done_func = false;
+//    bool new_call_func = false;
+    Func *call_func = nullptr;
+//    bool new_done_func = false;
     Func *done_func = nullptr;
+
+    ~Coroutine();
 };
 
 
