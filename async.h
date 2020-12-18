@@ -69,17 +69,17 @@ private:
 
     std::vector<Coroutine *> active_list;
 
-    struct event_pair {
+    struct EventPair {
         Event *event;
         Coroutine *coro;
 
-        event_pair(Event *e, Coroutine *c) {
+        EventPair(Event *e, Coroutine *c) {
             event = e;
             coro = c;
         }
     };
 
-    typedef std::vector<event_pair> event_vector;
+    typedef std::vector<EventPair> event_vector;
     std::map<time_t, event_vector> time_event_list;
     event_vector event_list;
 
@@ -197,5 +197,5 @@ public:
     bool force_stopped = false;
 };
 
-extern EventLoop *current_event;
+extern __thread EventLoop *current_event;
 #endif //COROUTINE_ASYNC_H

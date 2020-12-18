@@ -171,8 +171,9 @@ Coroutine::~Coroutine() {
     delete this->call_func;
 }
 
-void Coroutine::destroy() {
-    if (this->coro_status == RUNNING) {
+// force stop a coro can take many problem
+void Coroutine::destroy(bool force) {
+    if (this->coro_status == RUNNING && !force) {
         // destroy a coro witch is run is dangerous
         throw CoroutineStopException();
     }

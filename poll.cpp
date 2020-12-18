@@ -4,6 +4,8 @@
 
 #include "poll.h"
 #include "log.h"
+#include "asyncIO/poll.h"
+
 
 #include <sys/epoll.h>
 #include <cerrno>
@@ -48,7 +50,7 @@ void *poll_ev::delete_write() {
 EPoll::EPoll() {
     epoll_fd = epoll_create(10);
     if (epoll_fd == -1) {
-        logger(ERR, stderr, "epoll create error: %s", strerror(errno));
+        logger(ERR, stderr, "Epoll create error: %s", strerror(errno));
         abort();
     }
 }
@@ -109,7 +111,7 @@ void *EPoll::delete_read(int fd) {
         result = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
     }
     if (result == -1) {
-        logger(ERR, stderr, "epoll ctl : %s", strerror(errno));
+        logger(ERR, stderr, "Epoll ctl : %s", strerror(errno));
     }
     fds.erase(iter);
     return re;
@@ -131,7 +133,7 @@ void *EPoll::delete_write(int fd) {
         result = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
     }
     if (result == -1) {
-        logger(ERR, stderr, "epoll ctl : %s", strerror(errno));
+        logger(ERR, stderr, "Epoll ctl : %s", strerror(errno));
     }
     return re;
 }
@@ -149,7 +151,7 @@ std::vector<poll_result> *EPoll::wait_poll(int timeout) {
         if (errno == EINTR) {
             return fd_result;
         }
-        // no result to make epoll wait error
+        // no result to make Epoll wait error
         logger(ERR, stderr, "epoll_wait return error %s", strerror(errno));
         abort();
     }
@@ -179,3 +181,5 @@ std::vector<poll_result> *EPoll::wait_poll(int timeout) {
     }
     return fd_result;
 }
+
+

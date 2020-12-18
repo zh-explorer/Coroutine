@@ -9,7 +9,7 @@
 #include <sys/epoll.h>
 #include <vector>
 #include <map>
-// In linux we call user epoll for our poll
+// In linux we call user Epoll for our poll
 // Maybe user select or poll for windows/macos
 
 enum poll_event {

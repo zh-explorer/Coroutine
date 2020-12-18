@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <cstdint>
 #include <csetjmp>
-#include "../async.h"
 #include "../unit/func.h"
 #include <exception>
 
@@ -63,7 +62,7 @@ public:
 
     void init(Func *func, size_t stack_size = 0x200000);
 
-    void destroy();
+    void destroy(bool force = false);
 
     void schedule_back();
 

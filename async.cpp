@@ -6,16 +6,18 @@
 #include "async.h"
 #include "Coroutine/Coroutine.h"
 #include "log.h"
+#include "async/async.h"
+
 #include <cstdio>
 #include <unistd.h>
 #include <cassert>
-#include <signal.h>
+#include <csignal>
 #include <pthread.h>
 #include <cstring>
 
 // TODO: do not support thread. We should store this in TLS
 
-EventLoop *current_event;
+__thread EventLoop *current_event;
 
 void empty_handler(int signo) {}
 
@@ -183,9 +185,9 @@ void EventLoop::add_event(Event *e, int timeout) {
     if (timeout != -1) {
         time_t wait_timestamp = time(nullptr) + timeout;
         auto iter = this->time_event_list.find(wait_timestamp);
-        this->time_event_list[wait_timestamp].push_back(event_pair(e, current_run));
+        this->time_event_list[wait_timestamp].push_back(EventPair(e, current_run));
     } else {
-        this->event_list.push_back(event_pair(e, current_run));
+        this->event_list.push_back(EventPair(e, current_run));
     }
 }
 

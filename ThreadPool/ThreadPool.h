@@ -5,101 +5,36 @@
 #ifndef COROUTINE_THREADPOOL_H
 #define COROUTINE_THREADPOOL_H
 
-#include <functional>
-#include <thread>
-#include <condition_variable>
-#include <mutex>
+#include "./ThreadWorker.h"
+#include <vector>
+#include <csignal>
+#include "./ThreadExecutor.h"
 
-enum ExecuteStatus {
-    padding,
-    running,
-    finished,
-    canceled
-};
-
-class ThreadExecutor {
+class ThreadPool {
 public:
-    virtual void exec() = 0;
+    // if max_workers is 0. set max to unlimited
+    explicit ThreadPool(int max_workers = 10);
 
-    int cancel();
+    void submit(ThreadExecutor *executor);
 
-    bool is_padding() {
-        std::unique_lock<std::mutex> lk(m);
-        return this->status == padding;
+    void cancel(ThreadExecutor *executor);
+
+    void schedule();
+
+    bool empty() {
+        return this->busy_workers.empty();
     }
 
-    bool is_cancel() {
-        std::unique_lock<std::mutex> lk(m);
-        return this->status == canceled;
-    }
-
-    bool is_finish() {
-        std::unique_lock<std::mutex> lk(m);
-        return this->status == finished || this->status == canceled;
-    }
-
-    enum ExecuteStatus get_status() {
-        std::unique_lock<std::mutex> lk(m);
-        return this->status;
-    }
+    ~ThreadPool();
 
 private:
-    std::mutex m;
+    // check padding executor and do_schedule it
 
-    friend class ThreadWorker;
-
-    void set_status(enum ExecuteStatus s) {
-        std::unique_lock<std::mutex> lk(m);
-        this->status = s;
-    }
-
-    enum ExecuteStatus status = padding;
+    size_t max_workers;
+    std::vector<ThreadWorker *> busy_workers;
+    std::vector<ThreadWorker *> padding_works;
+    std::vector<ThreadExecutor *> padding_executor;
 };
 
-class ThreadWorker {
-public:
-    ThreadWorker();
-
-    ThreadWorker(ThreadWorker &) = delete;
-
-    ThreadWorker(ThreadWorker &&) = delete;
-
-    void run();
-
-    bool start(ThreadExecutor *new_executor);
-
-    bool stop();
-
-    void force_stop();
-
-    bool is_available() {
-        std::unique_lock<std::mutex> lk(m);
-        //a not busy and not stop thread is available
-        return !this->busy || !this->thread_stop;
-    }
-
-    // get and clean the done executor
-    ThreadExecutor *get_result() {
-        std::unique_lock<std::mutex> lk(m);
-        auto t = this->done_executor;
-        this->done_executor = nullptr;
-        return t;
-    }
-
-    ~ThreadWorker();
-
-private:
-
-    void task_done();
-
-    pthread_t main_thread_id;
-    pthread_t thread_id{};
-    std::mutex m;
-    bool thread_stop = false;
-    bool busy = false;
-    ThreadExecutor *executor = nullptr;
-    ThreadExecutor *done_executor = nullptr;
-    std::condition_variable cv;
-};
 
 #endif //COROUTINE_THREADPOOL_H
