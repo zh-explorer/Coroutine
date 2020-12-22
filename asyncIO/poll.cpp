@@ -3,7 +3,7 @@
 //
 
 #include "poll.h"
-#include "../log.h"
+#include "../unit/log.h"
 #include <cstring>
 #include <csignal>
 #include "./sock.h"
@@ -154,20 +154,21 @@ void Epoll::wait_poll(int timeout) {
                     ev.write_sock->sock_fin(poll_event);
                     this->delete_write(ev.write_sock);
                 }
-            } else {     // we should let Sock itself handle whether read/write data when aSock error/hup
-                // whether delete this fd from poll will handle by aSock itself
-                if (poll_event & EPOLLIN) {
-                    if (ev.read_sock) {
-                        ev.read_sock->ready_to_read();
-                    }
+            }
+            // when socket hup, there is still data can read.
+            // whether delete this fd from poll will handle by aSock itself
+            ev = this->get_ev(fd);
+            if (poll_event & EPOLLIN) {
+                if (ev.read_sock) {
+                    ev.read_sock->ready_to_read();
                 }
+            }
 
-                ev = this->get_ev(fd);
-                // TODO: del write when handle read will case a condition raise, we should get new ev from this->evs
-                if (poll_event & EPOLLOUT) {
-                    if (ev.write_sock) {
-                        ev.write_sock->ready_to_write();
-                    }
+            ev = this->get_ev(fd);
+            // TODO: del write when handle read will case a condition raise, we should get new ev from this->evs
+            if (poll_event & EPOLLOUT) {
+                if (ev.write_sock) {
+                    ev.write_sock->ready_to_write();
                 }
             }
         }
@@ -186,5 +187,5 @@ poll_ev Epoll::get_ev(int fd) {
 }
 
 Epoll::~Epoll() {
-    close(this->epoll_fd);
+    close(this->epoll_fd)
 }

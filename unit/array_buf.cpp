@@ -5,7 +5,7 @@
 #include "array_buf.h"
 #include <cstring>
 #include <cstdlib>
-#include "../log.h"
+#include "log.h"
 
 __buffer::__buffer() {
     clean();

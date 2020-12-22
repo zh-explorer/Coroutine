@@ -4,7 +4,7 @@
 #ifndef COROUTINE_EVENT_HPP
 #define COROUTINE_EVENT_HPP
 #include "Event.h"
-#include "../log.h"
+#include "../unit/log.h"
 
 
 // some simple event

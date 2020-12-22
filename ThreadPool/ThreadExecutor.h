@@ -30,6 +30,8 @@ public:
 
     bool is_finish();
 
+    bool is_success();
+
     // it's not good to handle a status with no lock
     enum ThreadStatus get_status() = delete;
 

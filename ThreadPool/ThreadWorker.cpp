@@ -3,7 +3,7 @@
 //
 
 #include "ThreadWorker.h"
-#include "../log.h"
+#include "../unit/log.h"
 #include <csignal>
 #include <cstring>
 

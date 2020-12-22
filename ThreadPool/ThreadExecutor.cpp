@@ -30,6 +30,8 @@ bool ThreadExecutor::is_finish() {
     return this->status == finished || this->status == canceled;
 }
 
+
+
 //enum ThreadStatus ThreadExecutor::get_status() {
 //    std::unique_lock<std::mutex> lk(m);
 //    return this->status;
@@ -46,4 +48,8 @@ void ThreadExecutor::set_pool(ThreadPool *p) {
 
 bool ThreadExecutor::is_running() {
     return this->status == running;
+}
+
+bool ThreadExecutor::is_success() {
+    return this->status == finished;
 }

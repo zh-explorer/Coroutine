@@ -18,7 +18,7 @@ public:
         int start_time = time(nullptr);
         int t = timeout;
         while (this->can_read || this->fin) {
-            current_loop->wait_event(this, timeout);
+            current_loop->wait_event(this, t);
             if (timeout != -1) {
                 t = timeout - (time(nullptr) - start_time);
                 if (t <= 0) {

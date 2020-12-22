@@ -3,14 +3,19 @@
 
 #include "../ThreadPool/ThreadExecutor.h"
 #include "../unit/func.h"
-#include "../log.h"
+#include "../unit/log.h"
 
 template<class R>
 class AsyncThread : public Event, public ThreadExecutor {
 public:
     explicit AsyncThread(Func *func) {
         f = func;
+        this->new_f = false;
     }
+
+    AsyncThread(AsyncThread &) = delete;
+
+    AsyncThread(AsyncThread &&) = delete;
 
     template<class ... ARGS>
     explicit AsyncThread(R (*func)(ARGS ...), ARGS ... args) {
@@ -44,13 +49,18 @@ public:
         r = (*f)();
     }
 
-    ~AsyncThread() {
-        this->cancel();
-        delete this->f;
+    virtual ~AsyncThread() {
+        if (!this->is_finish()) {
+            this->cancel();
+        }
+        if (this->new_f) {
+            delete this->f;
+        }
     }
 
 private:
-    R r = nullptr;
+    bool new_f = true;
+    R r{};
     Func *f;
 };
 

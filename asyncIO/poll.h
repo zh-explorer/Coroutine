@@ -13,12 +13,12 @@ class Sock;
 
 class poll_ev {
 public:
-    explicit poll_ev(int fd) : fd(fd), events(EPOLLET | EPOLLRDHUP) {};
+    explicit poll_ev(int fd) : fd(fd), events( EPOLLRDHUP) {};
 
-    poll_ev(int fd, Sock *sock) : fd(fd), read_sock(sock), events(EPOLLET | EPOLLRDHUP | EPOLLIN) {};
+    poll_ev(int fd, Sock *sock) : fd(fd), read_sock(sock), events( EPOLLRDHUP | EPOLLIN) {};
 
     poll_ev(int fd, Sock *read, Sock *write) : fd(fd) {
-        this->events = EPOLLET | EPOLLRDHUP;
+        this->events = EPOLLRDHUP;
         if (read != nullptr) {
             this->read_sock = read;
             this->events |= EPOLLIN;

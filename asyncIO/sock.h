@@ -22,6 +22,18 @@ public:
         return this->fin;
     }
 
+    bool could_read() const {
+        return this->can_read;
+    }
+
+    bool could_write() const {
+        return this->can_write;
+    }
+
+    int get_error() const {
+        return this->error;
+    };
+
 private:
     friend class Epoll;
 

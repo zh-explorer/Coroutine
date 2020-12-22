@@ -1,10 +1,10 @@
 #include <iostream>
-#include "async.h"
+#include "async/async.h"
+#include "asyncIO/AIO.h"
 #include "Coroutine/Coroutine.h"
-#include "aio.h"
 #include <unistd.h>
 #include <cstring>
-#include "log.h"
+#include "unit/log.h"
 //#include "unit/func.h
 
 void a1(char *message);
@@ -38,20 +38,20 @@ int main() {
 
     b->add_done_callback(b0);
     e = new EventLoop();
-    e->add_to_poll(a);
-    e->add_to_poll(b);
+    e->add_to_loop(a);
+    e->add_to_loop(b);
     e->loop();
 }
 
-void recv_all(aio *io) {
+void recv_all(AIO *io) {
     unsigned char buffer[0x1000];
     while (true) {
-        auto read_re = io->read(buffer, 0x1000, read_any);
+        auto read_re = io->read(buffer, 0x1000, 0);
         if (read_re == -1) {
             logger(INFO, stderr, "connect is close");
             return;
         }
-        auto write_re = io->write(buffer, read_re, write_any);
+        auto write_re = io->write(buffer, read_re, 0);
         if (write_re == -1) {
             logger(INFO, stderr, "connect is close");
             return;
