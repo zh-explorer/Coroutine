@@ -3,10 +3,12 @@
 //
 #ifndef COROUTINE_EVENT_HPP
 #define COROUTINE_EVENT_HPP
+
+#include "log.h"
+#include <functional>
+#include <cassert>
+#include "async.h"
 #include "Event.h"
-#include "../unit/log.h"
-
-
 // some simple event
 template<typename T>
 class Future : public Event {
@@ -72,6 +74,11 @@ private:
 
 class Sleep : public Event {
 public:
+
+    bool event_set() override {
+        return false;
+    }
+
     void sleep(int second) {
         if (second <= 0) {
             return;
@@ -82,11 +89,17 @@ public:
     void sleep_to(int timestamp) {
         this->sleep(timestamp - time(nullptr));
     }
-
-    bool event_set() override {
-        return false;
-    }
 };
+
+void asleep(int second) {
+    Sleep s;
+    s.sleep(second);
+}
+
+void asleep_to(int timestamp) {
+    Sleep s;
+    s.sleep(timestamp);
+}
 
 class Mutex {
 public:
@@ -273,4 +286,5 @@ public:
 private:
     unsigned int lock_value;
 };
+
 #endif //COROUTINE_EVENT_HPP

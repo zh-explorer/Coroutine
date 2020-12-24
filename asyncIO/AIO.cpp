@@ -3,8 +3,12 @@
 //
 
 #include "AIO.h"
+#include "log.h"
+#include "async.h"
+#include "poll.h"
 #include <cstring>
-#include "unistd.h"
+#include <unistd.h>
+#include <netdb.h>
 
 // return the accurate size read.
 // if read size not equal size arg
@@ -160,7 +164,7 @@ int AIO::read_any(unsigned char *buffer, size_t size, int timeout) {
             return -1;
         }
         result = ::read(this->fd, buffer, size);
-        epoll->delete_read(aSock);
+        epoll->delete_read(this->aSock);
         return result;
     }
     // is if always true: result >= -1
@@ -240,10 +244,13 @@ AIO::address *AIO::get_addr(char *domain, int port, int timeout) {
 }
 
 
-AIOServer::AIOServer(int backlog) {
+AIOServer::AIOServer() {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
-    ::listen(this->fd, backlog);
     this->class_init(fd);
+}
+
+int AIOServer::listen(int backlog) {
+    return ::listen(this->fd, backlog);
 }
 
 AIO *AIOServer::accept() {
@@ -266,4 +273,6 @@ AIO *AIOServer::accept() {
         }
     }
 }
+
+
 

@@ -7,7 +7,16 @@
 #include <tuple>
 #include <functional>
 
+template <class R>
 class Func {
+public:
+    virtual R operator()() = 0;
+
+    virtual ~Func() = default;
+};
+
+template <>
+class Func<void> {
 public:
     virtual void operator()() = 0;
 
@@ -15,9 +24,8 @@ public:
 };
 
 template<class R, class ... ARGS>
-class func : public Func {
+class func : public Func<R> {
 public:
-    R r;
     std::tuple<ARGS...> arg_list;
 
     std::function<R(ARGS...)> call_func;
@@ -39,12 +47,12 @@ public:
     }
 
     template<std::size_t... I>
-    void call(std::index_sequence<I...>) {
-        r = call_func(std::get<I>(arg_list)...);
+     R call(std::index_sequence<I...>) {
+        return call_func(std::get<I>(arg_list)...);
     }
 
-    void operator()() override {
-        call(std::make_index_sequence<sizeof...(ARGS)>());
+    R operator()() override {
+        return call(std::make_index_sequence<sizeof...(ARGS)>());
     }
 
     ~func() {}
@@ -63,7 +71,7 @@ public:
 
 // specialization for func which return void
 template<class  ... ARGS>
-class func<void, ARGS...> : public Func {
+class func<void, ARGS...> : public Func<void> {
 public:
     int r = 0;
     std::tuple<ARGS...> arg_list;

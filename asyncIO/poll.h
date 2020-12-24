@@ -7,15 +7,23 @@
 
 #include <map>
 #include <sys/epoll.h>
-#include <assert.h>
+#include <cassert>
 
 class Sock;
 
 class poll_ev {
 public:
-    explicit poll_ev(int fd) : fd(fd), events( EPOLLRDHUP) {};
+    explicit poll_ev(int fd) : fd(fd), events(EPOLLRDHUP) {};
 
-    poll_ev(int fd, Sock *sock) : fd(fd), read_sock(sock), events( EPOLLRDHUP | EPOLLIN) {};
+    poll_ev(const poll_ev &ev) {
+        this->ev = ev.ev;
+        this->write_sock = ev.write_sock;
+        this->read_sock = ev.read_sock;
+        this->fd = ev.fd;
+        this->events = ev.events;
+    }
+
+    poll_ev(int fd, Sock *sock) : fd(fd), read_sock(sock), events(EPOLLRDHUP | EPOLLIN) {};
 
     poll_ev(int fd, Sock *read, Sock *write) : fd(fd) {
         this->events = EPOLLRDHUP;
@@ -61,7 +69,7 @@ public:
     }
 
     bool cleaned() const {
-        return !this->read_sock && this->write_sock;
+        return !this->read_sock && !this->write_sock;
     }
 
     uint32_t events;
@@ -90,9 +98,10 @@ public:
     }
 
     ~Epoll();
+
 private:
 
-    poll_ev get_ev(int fd);
+    poll_ev& get_ev(int fd);
 
     std::map<int, poll_ev> evs;
     int epoll_fd;

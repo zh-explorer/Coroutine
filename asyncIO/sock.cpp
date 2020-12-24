@@ -4,11 +4,9 @@
 
 #include "sock.h"
 #include <fcntl.h>
-#include "../unit/log.h"
-#include "./poll.h"
+#include "log.h"
 #include <cerrno>
 #include <cstring>
-#include <unistd.h>
 #include <cstdlib>
 
 Sock::Sock(int fd) {

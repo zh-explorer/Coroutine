@@ -10,7 +10,8 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
-#include "./ThreadExecutor.h"
+
+class ThreadExecutor;
 
 enum WorkerStatus {
     waiting,

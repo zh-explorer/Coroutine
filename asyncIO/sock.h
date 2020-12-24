@@ -5,8 +5,6 @@
 #ifndef COROUTINE_SOCK_H
 #define COROUTINE_SOCK_H
 
-#include "../unit/array_buf.h"
-
 class Epoll;
 
 class Sock {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Coroutine)
+project(coro)
 
 set(CMAKE_CXX_STANDARD 14)
 find_package(Threads)
@@ -9,10 +9,45 @@ find_package(Threads)
 #SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 #set(CMAKE_CXX_FLAGS -fsanitize=address)
 #set(CMAKE_CXX_FLAGS -fsanitize-recover=address)
-add_library(Coroutine Coroutine/Coroutine.cpp Coroutine/Coroutine.h unit/array_buf.cpp unit/array_buf.h unit/log.cpp unit/log.h unit/func.h ThreadPool/ThreadPool.cpp ThreadPool/ThreadPool.h ThreadPool/ThreadPool.cpp ThreadPool/ThreadPool.h ThreadPool/ThreadWorker.cpp ThreadPool/ThreadWorker.h ThreadPool/ThreadExecutor.h ThreadPool/ThreadExecutor.cpp asyncIO/poll.cpp asyncIO/poll.h asyncIO/sock.cpp asyncIO/sock.h async/async.cpp async/async.h async/Event.hpp async/Event.h async/AsyncThread.hpp asyncIO/ASock.hpp asyncIO/AIO.cpp asyncIO/AIO.h)
-add_library(Coroutine_d SHARED)
-add_executable(Coroutine_bin main.cpp)
-target_link_libraries(Coroutine ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(Coroutine_bin Coroutine)
-target_link_libraries(Coroutine_d Coroutine)
 
+add_library(Coroutine SHARED)
+
+include(async/CMakeLists.txt)
+include(asyncIO/CMakeLists.txt)
+include(coro/CMakeLists.txt)
+include(ThreadPool/CMakeLists.txt)
+include(unit/CMakeLists.txt)
+
+target_link_libraries(Coroutine ${CMAKE_THREAD_LIBS_INIT})
+
+#add_library(Coroutine SHARED)
+#target_link_libraries(Coroutine Coroutine)
+
+add_executable(Coroutine_bin main.cpp)
+target_link_libraries(Coroutine_bin Coroutine)
+
+target_include_directories(Coroutine PUBLIC
+        "${PROJECT_BINARY_DIR}"
+        "${PROJECT_SOURCE_DIR}/async"
+        "${PROJECT_SOURCE_DIR}/asyncIO"
+        "${PROJECT_SOURCE_DIR}/coro"
+        "${PROJECT_SOURCE_DIR}/ThreadPool"
+        "${PROJECT_SOURCE_DIR}/unit"
+        )
+
+file(GLOB header */*.h */*.hpp)
+
+set_target_properties(Coroutine PROPERTIES PUBLIC_HEADER "${header}")
+
+target_include_directories(Coroutine_bin PUBLIC
+        "${PROJECT_BINARY_DIR}"
+        "${PROJECT_SOURCE_DIR}/async"
+        "${PROJECT_SOURCE_DIR}/asyncIO"
+        "${PROJECT_SOURCE_DIR}/coro"
+        "${PROJECT_SOURCE_DIR}/ThreadPool"
+        "${PROJECT_SOURCE_DIR}/unit"
+        )
+
+install(TARGETS Coroutine
+        LIBRARY DESTINATION ${INSTALL_LIBDIR} lib
+        PUBLIC_HEADER DESTINATION Coroutine)

@@ -5,12 +5,13 @@
 #ifndef COROUTINE_AIO_H
 #define COROUTINE_AIO_H
 
-#include "../async/Event.h"
-#include <unistd.h>
+#include "ASock.hpp"
+#include "AsyncThread.hpp"
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <cstring>
+#include <unistd.h>
+
 
 class AIO {
 public:
@@ -91,7 +92,9 @@ private:
 
 class AIOServer : public AIO {
 public:
-    explicit AIOServer(int backlog = 20);
+    explicit AIOServer();
+
+    int listen(int backlog = 20);
 
     AIO *accept();
 };

@@ -3,10 +3,10 @@
 //
 
 #include "poll.h"
-#include "../unit/log.h"
+#include "log.h"
 #include <cstring>
 #include <csignal>
-#include "./sock.h"
+#include "sock.h"
 #include <exception>
 #include <unistd.h>
 
@@ -40,8 +40,8 @@ bool Epoll::add_read(Sock *s) {
         ev = p.pack_ev();
         op = EPOLL_CTL_MOD;
     } catch (NotFindException &e) {
-        poll_ev p(fd, s);
-        this->evs[fd] = p;
+        this->evs.insert(std::pair<int, poll_ev>(fd, poll_ev(fd, s)));
+        auto p = this->get_ev(fd);  // no result to exception
         ev = p.pack_ev();
         op = EPOLL_CTL_ADD;
     }
@@ -67,8 +67,8 @@ bool Epoll::add_write(Sock *s) {
         ev = p.pack_ev();
         op = EPOLL_CTL_MOD;
     } catch (NotFindException &e) {
-        poll_ev p(fd, nullptr, s);
-        this->evs[fd] = p;
+        this->evs.insert(std::pair<int, poll_ev>(fd, poll_ev(fd, nullptr, s)));
+        auto p = this->get_ev(fd);  // no result to exception
         ev = p.pack_ev();
         op = EPOLL_CTL_ADD;
     }
@@ -133,28 +133,14 @@ void Epoll::wait_poll(int timeout) {
     sigset_t sigmask;
     pthread_sigmask(SIG_BLOCK, nullptr, &sigmask);
     sigdelset(&sigmask, SIGUSR1);  // unblock SIGUSER1 so that other thead can send this to notify a thead task is done
-
-    int event_count = epoll_pwait(epoll_fd, events, MAXEVENTS, timeout * 1000, &sigmask);
-
+    int t = timeout != -1 ? timeout * 1000 : -1;
+    int event_count = epoll_pwait(epoll_fd, events, MAXEVENTS, t, &sigmask);
     for (int i = 0; i < event_count; i++) {
         auto poll_event = events[i].events;
         auto fd = events[i].data.fd;
         try {
 
             auto ev = this->get_ev(fd);
-            if (poll_event & EPOLLERR || poll_event & EPOLLHUP || poll_event & EPOLLRDHUP) {
-                // socket get some error or closed, notify both read and write
-                // this fd should delete from poll
-                if (ev.read_sock) {
-                    ev.read_sock->sock_fin(poll_event);
-                    this->delete_read(ev.read_sock);
-                }
-                ev = this->get_ev(fd);
-                if (ev.write_sock) {
-                    ev.write_sock->sock_fin(poll_event);
-                    this->delete_write(ev.write_sock);
-                }
-            }
             // when socket hup, there is still data can read.
             // whether delete this fd from poll will handle by aSock itself
             ev = this->get_ev(fd);
@@ -171,6 +157,20 @@ void Epoll::wait_poll(int timeout) {
                     ev.write_sock->ready_to_write();
                 }
             }
+
+            if (poll_event & EPOLLERR || poll_event & EPOLLHUP || poll_event & EPOLLRDHUP) {
+                // socket get some error or closed, notify both read and write
+                // this fd should delete from poll
+                if (ev.read_sock) {
+                    ev.read_sock->sock_fin(poll_event);
+                    this->delete_read(ev.read_sock);
+                }
+                ev = this->get_ev(fd);
+                if (ev.write_sock) {
+                    ev.write_sock->sock_fin(poll_event);
+                    this->delete_write(ev.write_sock);
+                }
+            }
         }
         catch (NotFindException &e) {
             logger(WARN, stderr, "find a fd not in evs: %d", fd);
@@ -178,7 +178,7 @@ void Epoll::wait_poll(int timeout) {
     }
 }
 
-poll_ev Epoll::get_ev(int fd) {
+poll_ev &Epoll::get_ev(int fd) {
     auto iter = this->evs.find(fd);
     if (iter == this->evs.end()) {
         throw NotFindException();
@@ -187,5 +187,5 @@ poll_ev Epoll::get_ev(int fd) {
 }
 
 Epoll::~Epoll() {
-    close(this->epoll_fd)
+    close(this->epoll_fd);
 }

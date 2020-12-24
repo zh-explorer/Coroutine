@@ -1,10 +1,11 @@
 #include <iostream>
-#include "async/async.h"
-#include "asyncIO/AIO.h"
-#include "Coroutine/Coroutine.h"
+#include "async.h"
+#include "AIO.h"
+#include "Coroutine.h"
 #include <unistd.h>
 #include <cstring>
-#include "unit/log.h"
+#include "log.h"
+#include "Event.hpp"
 //#include "unit/func.h
 
 void a1(char *message);
@@ -46,12 +47,12 @@ int main() {
 void recv_all(AIO *io) {
     unsigned char buffer[0x1000];
     while (true) {
-        auto read_re = io->read(buffer, 0x1000, 0);
+        auto read_re = io->read_any(buffer, 0x1000, -1);
         if (read_re == -1) {
             logger(INFO, stderr, "connect is close");
             return;
         }
-        auto write_re = io->write(buffer, read_re, 0);
+        auto write_re = io->write(buffer, read_re, -1);
         if (write_re == -1) {
             logger(INFO, stderr, "connect is close");
             return;
@@ -63,26 +64,26 @@ void clean_coro(Coroutine *coro) {
      coro->destroy();
 }
 
-void a2(char *message) {
-    unsigned char buffer[0x1000];
-    aio_client io(AF_INET, SOCK_STREAM, 0);
-    io.connect("127.0.0.1", 8080);
-    while (true) {
-        auto read_re = io.read(buffer, 0x1000, read_any);
-        if (read_re == 1) {
-            logger(INFO, stderr, "connect is close");
-            return;
-        }
-        auto write_re = io.write(buffer, read_re, write_any);
-        if (write_re == -1) {
-            logger(INFO, stderr, "connect is close");
-            return;
-        }
-    }
-}
+//void a2(char *message) {
+//    unsigned char buffer[0x1000];
+//    aio_client io(AF_INET, SOCK_STREAM, 0);
+//    io.connect("127.0.0.1", 8080);
+//    while (true) {
+//        auto read_re = io.read(buffer, 0x1000, read_any);
+//        if (read_re == 1) {
+//            logger(INFO, stderr, "connect is close");
+//            return;
+//        }
+//        auto write_re = io.write(buffer, read_re, write_any);
+//        if (write_re == -1) {
+//            logger(INFO, stderr, "connect is close");
+//            return;
+//        }
+//    }
+//}
 
 void a1(char *message) {
-    aio_server io(AF_INET, SOCK_STREAM, 0);
+    AIOServer io;
     if (auto re = io.bind(12345) != 0) {
         logger(ERR, stderr, "bind error: %s", strerror(errno));
         exit(-1);
@@ -94,11 +95,10 @@ void a1(char *message) {
             logger(ERR, stderr, "accept error");
             break;
         }
-
         Coroutine *new_coro = new Coroutine(recv_all, new_io);
 
         new_coro->add_done_callback(clean_coro);
-        add_to_poll(new_coro);
+        current_loop->add_to_loop(new_coro);
     }
 }
 

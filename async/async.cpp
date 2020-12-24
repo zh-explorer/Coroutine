@@ -2,9 +2,15 @@
 // Created by explorer on 2020/12/9.
 //
 
-#include "./async.h"
-#include "./Event.h"
-#include "../unit/log.h"
+#include "async.h"
+#include "sock.h"
+#include "ThreadPool.h"
+#include "Coroutine.h"
+#include "Event.h"
+#include "log.h"
+#include "poll.h"
+
+__thread EventLoop *current_loop;
 
 EventLoop::EventLoop() {
     this->epoll = new Epoll();
@@ -29,7 +35,11 @@ void EventLoop::loop() {
 }
 
 void EventLoop::add_to_loop(Coroutine *coro) {
-    this->new_coro_list.push_back(coro);
+    this->active_coro_list.push_back(coro);
+}
+
+void EventLoop::schedule(Coroutine *coro) {
+    this->active_coro_list.push_back(coro);
 }
 
 void EventLoop::wait_event(Event *e, int timeout) {
@@ -43,7 +53,7 @@ void EventLoop::wait_event(Event *e, int timeout) {
 }
 
 bool EventLoop::all_done() {
-    return this->new_coro_list.empty() && this->time_event_list.empty() && this->event_list.empty();
+    return this->active_coro_list.empty() && this->time_event_list.empty() && this->event_list.empty();
 }
 
 std::vector<Coroutine *> EventLoop::find_active_coro() {
@@ -58,6 +68,7 @@ std::vector<Coroutine *> EventLoop::find_active_coro() {
         for (auto pair : timeout_vec) {
             act_vec.push_back(pair.coro);
         }
+        time_event_iter++;
     }
     auto rest = this->time_event_list.erase(this->time_event_list.begin(), timeout_iter);
 
@@ -93,11 +104,11 @@ std::vector<Coroutine *> EventLoop::find_active_coro() {
         }
     }
 
-    // mov all coro in new_coro_list
-    for (auto new_coro : this->new_coro_list) {
+    // mov all coro in active_coro_list
+    for (auto new_coro : this->active_coro_list) {
         act_vec.push_back(new_coro);
     }
-    this->new_coro_list.clear();
+    this->active_coro_list.clear();
     return act_vec;
 }
 
@@ -127,10 +138,10 @@ EventLoop::~EventLoop() {
     delete this->pool;
     delete this->epoll;
     // delete all coro
-    for (auto i: this->new_coro_list) {
+    for (auto i: this->active_coro_list) {
         i->destroy(true);
     }
-    this->new_coro_list.clear();
+    this->active_coro_list.clear();
 
     for (auto i: this->event_list) {
         i.coro->destroy(true);

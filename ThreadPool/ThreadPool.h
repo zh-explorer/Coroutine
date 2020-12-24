@@ -5,10 +5,11 @@
 #ifndef COROUTINE_THREADPOOL_H
 #define COROUTINE_THREADPOOL_H
 
-#include "./ThreadWorker.h"
 #include <vector>
 #include <csignal>
-#include "./ThreadExecutor.h"
+
+class ThreadWorker;
+class ThreadExecutor;
 
 class ThreadPool {
 public:

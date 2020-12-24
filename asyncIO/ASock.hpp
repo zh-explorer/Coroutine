@@ -6,7 +6,9 @@
 #define COROUTINE_ASOCK_HPP
 
 #include "sock.h"
-#include "../async/Event.h"
+#include "Event.h"
+#include "async.h"
+#include <ctime>
 
 class ASock : public Event, public Sock {
 public:
@@ -17,7 +19,7 @@ public:
         this->can_read = false;
         int start_time = time(nullptr);
         int t = timeout;
-        while (this->can_read || this->fin) {
+        while (!this->can_read && !this->fin) {
             current_loop->wait_event(this, t);
             if (timeout != -1) {
                 t = timeout - (time(nullptr) - start_time);
@@ -32,7 +34,7 @@ public:
         this->can_write = false;
         int start_time = time(nullptr);
         int t = timeout;
-        while (this->can_write || this->fin) {
+        while (!this->can_write && !this->fin) {
             current_loop->wait_event(this, t);
             if (timeout != -1) {
                 t = timeout - (time(nullptr) - start_time);
