@@ -48,6 +48,8 @@ target_include_directories(Coroutine_bin PUBLIC
         "${PROJECT_SOURCE_DIR}/unit"
         )
 
+SET(CMAKE_INSTALL_PREFIX "/usr")
+
 install(TARGETS Coroutine
         LIBRARY DESTINATION ${INSTALL_LIBDIR} lib
-        PUBLIC_HEADER DESTINATION Coroutine)
+        PUBLIC_HEADER DESTINATION include/Coroutine)

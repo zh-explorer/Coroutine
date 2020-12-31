@@ -81,7 +81,7 @@ public:
     }
 
     template<class R, class ... ARGS>
-    void add_done_callback(std::function<R(ARGS...)> func, ARGS ... args) {
+    void add_done_callback(std::function<R(Coroutine *, ARGS...)> func, ARGS ... args) {
         auto f = new_func(func, this, args...);
 //        this->new_done_func = true;
         add_done_callback(f);
