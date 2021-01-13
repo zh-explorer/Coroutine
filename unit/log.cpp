@@ -13,6 +13,8 @@
 
 // TODO need a better logger
 
+#ifdef LOG_DEBUG
+
 int logger(const char *level, const char *pFile, const char *pFuncName, int iLineNumb, FILE *pLogHandle, const char *fmt, ...) {
     if (nullptr == pLogHandle || nullptr == pFile || '\0' == pFile[0] || nullptr == pFuncName || '\0' == pFuncName[0])
         return -1;
@@ -34,3 +36,5 @@ int logger(const char *level, const char *pFile, const char *pFuncName, int iLin
     fwrite("\n", 1, 1, pLogHandle);
     return 0;
 }
+
+#endif

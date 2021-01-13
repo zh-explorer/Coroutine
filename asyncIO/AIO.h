@@ -26,6 +26,10 @@ public:
 
     int read_any(unsigned char *buffer, size_t size, int timeout);
 
+    int get_fd() const {
+        return this->fd;
+    }
+
     int bind(int port) const;
 
     int bind(const struct sockaddr *addr, socklen_t addrlen) const;

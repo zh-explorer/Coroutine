@@ -69,11 +69,11 @@ struct regs {
         "movq %7, %%r15;\n"     \
     :                   \
     : "m"((regs)->r8), "m"((regs)->r9), "m"((regs)->r10), "m"((regs)->r11), "m"((regs)->r12), "m"((regs)->r13), "m"((regs)->r14), "m"((regs)->r15)      \
-    );  \
-    asm("movq %0, %%rbp;\n" \
-        "movq %1, %%rsp;\n"      \
-    :               \
-    :"m"((regs)->rbp), "m"((regs)->rsp));
+    );
+//    asm("movq %0, %%rbp;\n" \
+//        "movq %1, %%rsp;\n"      \
+//    :               \
+//    :"m"((regs)->rbp), "m"((regs)->rsp));
 
 void Coroutine::init(Func<void> *func, size_t stack_size) {
     this->call_func = func;

@@ -17,6 +17,8 @@ public:
 
     void wait_read(int timeout = -1) {
         this->can_read = false;
+        this->need_read = true;
+
         int start_time = time(nullptr);
         int t = timeout;
         while (!this->can_read && !this->fin) {
@@ -24,14 +26,18 @@ public:
             if (timeout != -1) {
                 t = timeout - (time(nullptr) - start_time);
                 if (t <= 0) {
+                    this->need_read = false;
                     return;
                 }
             }
         }
+        this->need_read = false;
     }
 
     void wait_write(int timeout = -1) {
         this->can_write = false;
+        this->need_write = true;
+
         int start_time = time(nullptr);
         int t = timeout;
         while (!this->can_write && !this->fin) {
@@ -39,17 +45,29 @@ public:
             if (timeout != -1) {
                 t = timeout - (time(nullptr) - start_time);
                 if (t <= 0) {
+                    this->need_write = false;
                     return;
                 }
             }
         }
+        this->need_write = false;
     }
 
     bool event_set() override {
-        return this->can_read || this->can_write || this->fin;
+        if (this->fin) {
+            return true;
+        }
+        if (this->need_write && this->can_write) {
+            return true;
+        }
+        if (this->can_read && this->need_read) {
+            return true;
+        }
     }
 
 private:
+    bool need_read;
+    bool need_write;
 };
 
 #endif //COROUTINE_ASOCK_HPP

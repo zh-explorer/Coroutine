@@ -61,7 +61,7 @@ public:
 
     Coroutine(const Coroutine &&) = delete;
 
-    void init(Func<void> *func, size_t stack_size = 0x200000);
+    void init(Func<void> *func, size_t stack_size = 0x20000);
 
     void destroy(bool force = false);
 
